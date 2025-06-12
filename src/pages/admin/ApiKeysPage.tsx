@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +21,7 @@ const API_KEYS: ApiKey[] = [
   // AI Providers
   { name: 'OPENAI_API_KEY', label: 'OpenAI API Key', description: 'For GPT models and DALL-E', required: true, category: 'AI Providers' },
   { name: 'ANTHROPIC_API_KEY', label: 'Anthropic API Key', description: 'For Claude models', required: false, category: 'AI Providers' },
+  { name: 'GOOGLE_AI_API_KEY', label: 'Google AI API Key', description: 'For Gemini models', required: false, category: 'AI Providers' },
   { name: 'PERPLEXITY_API_KEY', label: 'Perplexity API Key', description: 'For Perplexity models', required: false, category: 'AI Providers' },
   { name: 'ELEVENLABS_API_KEY', label: 'ElevenLabs API Key', description: 'For voice synthesis', required: false, category: 'AI Providers' },
   
