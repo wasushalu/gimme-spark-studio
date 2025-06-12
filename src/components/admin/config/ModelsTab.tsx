@@ -11,8 +11,23 @@ interface ModelsTabProps {
 }
 
 export default function ModelsTab({ config, setConfig, models, getModelsByModality }: ModelsTabProps) {
+  console.log('ModelsTab: Render with props:', {
+    totalModels: models.length,
+    textModels: getModelsByModality('text').length,
+    imageModels: getModelsByModality('image').length,
+    currentConfig: config?.model
+  });
+
   return (
     <div className="space-y-4">
+      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+        <p className="text-sm text-blue-800">
+          Debug: Total models: {models.length} | 
+          Text: {getModelsByModality('text').length} | 
+          Image: {getModelsByModality('image').length}
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="text-model">Text Model</Label>
@@ -20,7 +35,7 @@ export default function ModelsTab({ config, setConfig, models, getModelsByModali
             value={config.model.text.model}
             onValueChange={(value) => {
               const selectedModel = models.find(m => m.model_name === value && m.modality === 'text');
-              console.log('Selected text model:', selectedModel);
+              console.log('ModelsTab: Selected text model:', selectedModel);
               setConfig(prev => ({
                 ...prev,
                 model: {
@@ -60,7 +75,7 @@ export default function ModelsTab({ config, setConfig, models, getModelsByModali
             value={config.model.image.model}
             onValueChange={(value) => {
               const selectedModel = models.find(m => m.model_name === value && m.modality === 'image');
-              console.log('Selected image model:', selectedModel);
+              console.log('ModelsTab: Selected image model:', selectedModel);
               setConfig(prev => ({
                 ...prev,
                 model: {

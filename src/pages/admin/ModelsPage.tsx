@@ -26,27 +26,28 @@ export default function ModelsPage() {
   const { data: models, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-models'],
     queryFn: async () => {
-      console.log('Fetching models from model_catalog...');
+      console.log('ModelsPage: Fetching models from model_catalog...');
       const { data, error } = await supabase
         .from('model_catalog')
         .select('*')
         .order('provider', { ascending: true });
       
-      console.log('Models query result:', { data, error });
+      console.log('ModelsPage: Models query result:', { data, error, count: data?.length });
       
       if (error) {
-        console.error('Error fetching models:', error);
+        console.error('ModelsPage: Error fetching models:', error);
         throw error;
       }
       
-      console.log(`Successfully fetched ${data?.length || 0} models`);
+      console.log(`ModelsPage: Successfully fetched ${data?.length || 0} models`);
+      console.log('ModelsPage: Model details:', data);
       return data as Model[];
     }
   });
 
   const toggleModelStatus = async (modelId: string, currentStatus: boolean) => {
     try {
-      console.log(`Toggling model ${modelId} from ${currentStatus} to ${!currentStatus}`);
+      console.log(`ModelsPage: Toggling model ${modelId} from ${currentStatus} to ${!currentStatus}`);
       const { error } = await supabase
         .from('model_catalog')
         .update({ enabled: !currentStatus })
@@ -61,7 +62,7 @@ export default function ModelsPage() {
       
       refetch();
     } catch (error) {
-      console.error('Error updating model:', error);
+      console.error('ModelsPage: Error updating model:', error);
       toast({
         title: 'Error',
         description: 'Failed to update model status. Please try again.',
@@ -72,9 +73,13 @@ export default function ModelsPage() {
 
   const filteredModels = filterModels(models || [], searchTerm);
 
-  console.log('Filtered models:', filteredModels);
-  console.log('Search term:', searchTerm);
-  console.log('Total models:', models?.length);
+  console.log('ModelsPage: Render state:', {
+    models: models?.length || 0,
+    filteredModels: filteredModels?.length || 0,
+    searchTerm,
+    isLoading,
+    error: error?.message
+  });
 
   if (error) {
     return (

@@ -15,6 +15,7 @@ export function useAgentConfig(agent: Agent | null) {
     queryFn: async () => {
       if (!agent) return null;
       
+      console.log('useAgentConfig: Fetching config for agent:', agent.agent_id);
       const { data, error } = await supabase
         .from('agent_config_versions')
         .select('*')
@@ -23,8 +24,9 @@ export function useAgentConfig(agent: Agent | null) {
         .single();
       
       if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching config:', error);
+        console.error('useAgentConfig: Error fetching config:', error);
       }
+      console.log('useAgentConfig: Config result:', data);
       return data as AgentConfigVersion | null;
     },
     enabled: !!agent
@@ -34,7 +36,7 @@ export function useAgentConfig(agent: Agent | null) {
   const { data: models = [], isLoading: modelsLoading, error: modelsError } = useQuery({
     queryKey: ['models-for-config'],
     queryFn: async () => {
-      console.log('Fetching models for agent configuration...');
+      console.log('useAgentConfig: Fetching models for agent configuration...');
       const { data, error } = await supabase
         .from('model_catalog')
         .select('*')
@@ -42,12 +44,25 @@ export function useAgentConfig(agent: Agent | null) {
         .order('provider', { ascending: true })
         .order('model_name', { ascending: true });
       
-      console.log('Models query result:', { data, error, count: data?.length });
+      console.log('useAgentConfig: Models query result:', { 
+        data, 
+        error, 
+        count: data?.length,
+        textModels: data?.filter(m => m.modality === 'text').length || 0,
+        imageModels: data?.filter(m => m.modality === 'image').length || 0
+      });
       
       if (error) {
-        console.error('Error fetching models for config:', error);
+        console.error('useAgentConfig: Error fetching models for config:', error);
         throw error;
       }
+      
+      console.log('useAgentConfig: Model breakdown by modality:');
+      const modalityBreakdown = data?.reduce((acc, model) => {
+        acc[model.modality] = (acc[model.modality] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      console.log('useAgentConfig: Modality breakdown:', modalityBreakdown);
       
       return data as ModelCatalog[];
     }
@@ -126,7 +141,7 @@ export function useAgentConfig(agent: Agent | null) {
       queryClient.invalidateQueries({ queryKey: ['agent-config', agent?.agent_id] });
     },
     onError: (error) => {
-      console.error('Error saving config:', error);
+      console.error('useAgentConfig: Error saving config:', error);
       toast({
         title: 'Error',
         description: 'Failed to save configuration. Please try again.',
@@ -136,7 +151,9 @@ export function useAgentConfig(agent: Agent | null) {
   });
 
   const getModelsByModality = (modality: string) => {
-    return models.filter(model => model.modality === modality);
+    const filtered = models.filter(model => model.modality === modality);
+    console.log(`useAgentConfig: getModelsByModality(${modality}) returning ${filtered.length} models:`, filtered);
+    return filtered;
   };
 
   return {
