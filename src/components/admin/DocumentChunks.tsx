@@ -6,7 +6,19 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
-import { KnowledgeBaseChunk } from '@/types/database';
+
+interface DatabaseChunk {
+  id: string;
+  document_id: string;
+  agent_id: string;
+  chunk_index: number;
+  content: string;
+  word_count: number;
+  char_count: number;
+  embedding: string | null;
+  metadata: any;
+  created_at: string;
+}
 
 interface DocumentChunksProps {
   documentId: string;
@@ -26,7 +38,7 @@ export default function DocumentChunks({ documentId, filename }: DocumentChunksP
         .order('chunk_index', { ascending: true });
       
       if (error) throw error;
-      return data as KnowledgeBaseChunk[];
+      return data as DatabaseChunk[];
     },
     enabled: isExpanded
   });
