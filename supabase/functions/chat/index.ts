@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -34,12 +33,19 @@ serve(async (req) => {
       throw messagesError;
     }
 
-    // Use agent configuration if available, otherwise fallback to defaults
-    const config = agentConfig || {
-      model: { text: { provider: 'openai', model: 'gpt-4o-mini' } },
-      generation: { temperature: 0.7, max_response_tokens: 4000 },
-      prompt: 'You are a helpful assistant.'
-    };
+    // Use agent configuration if available, otherwise fallback to very basic defaults
+    let config;
+    if (agentConfig && agentConfig.prompt) {
+      console.log('Using provided agent config with prompt:', agentConfig.prompt.substring(0, 100) + '...');
+      config = agentConfig;
+    } else {
+      console.log('No agent config or prompt provided, using fallback');
+      config = {
+        model: { text: { provider: 'openai', model: 'gpt-4o-mini' } },
+        generation: { temperature: 0.7, max_response_tokens: 4000 },
+        prompt: 'You are a helpful assistant.'
+      };
+    }
 
     // Build conversation history
     const conversationHistory = messages.map(msg => ({
@@ -103,6 +109,8 @@ async function callOpenAI(model: string, messages: any[], config: any) {
   const systemPrompt = config.prompt || 'You are a helpful assistant.';
   const temperature = config.generation?.temperature || 0.7;
   const maxTokens = config.generation?.max_response_tokens || 4000;
+
+  console.log('OpenAI call with system prompt:', systemPrompt.substring(0, 100) + '...');
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
