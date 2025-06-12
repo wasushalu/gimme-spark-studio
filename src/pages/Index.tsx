@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { GimmebotPage } from '@/pages/GimmebotPage';
+import { AuthModal } from '@/components/auth/AuthModal';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -12,6 +13,7 @@ import {
   ArrowUp,
   Check
 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 const features = [
   {
@@ -39,6 +41,8 @@ const features = [
 
 export default function Index() {
   const [currentView, setCurrentView] = useState<'home' | 'gimmebot'>('home');
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { user } = useAuth();
 
   if (currentView === 'gimmebot') {
     return (
@@ -178,13 +182,19 @@ export default function Index() {
                 size="lg" 
                 variant="outline"
                 className="px-8 py-3 h-auto border-white/20 text-white hover:bg-white/10"
+                onClick={() => user ? setCurrentView('gimmebot') : setShowAuthModal(true)}
               >
-                Sign Up Free
+                {user ? 'Go to Dashboard' : 'Sign Up Free'}
               </Button>
             </div>
           </div>
         </Card>
       </div>
+
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
     </MainLayout>
   );
 }
