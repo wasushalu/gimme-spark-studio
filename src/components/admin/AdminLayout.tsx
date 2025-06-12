@@ -1,6 +1,6 @@
 
-import { useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -18,6 +18,7 @@ import {
 export default function AdminLayout() {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('agents');
 
   const navigationItems = [
@@ -27,6 +28,17 @@ export default function AdminLayout() {
     { id: 'api-keys', label: 'API Keys', icon: Key, path: '/admin/api-keys' },
     { id: 'logs', label: 'Logs', icon: FileText, path: '/admin/logs' },
   ];
+
+  // Update active tab based on current route
+  useEffect(() => {
+    const currentPath = location.pathname;
+    const activeItem = navigationItems.find(item => item.path === currentPath);
+    if (activeItem) {
+      setActiveTab(activeItem.id);
+    } else if (currentPath === '/admin') {
+      setActiveTab('agents');
+    }
+  }, [location.pathname]);
 
   const handleNavigation = (item: typeof navigationItems[0]) => {
     setActiveTab(item.id);

@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { navItems } from "./nav-items";
 import AdminLayout from "@/components/admin/AdminLayout";
-import AdminPage from "@/pages/admin/AdminPage";
 import AgentsPage from "@/pages/admin/AgentsPage";
 import ModelsPage from "@/pages/admin/ModelsPage";
 import ToolsPage from "@/pages/admin/ToolsPage";
@@ -28,7 +27,7 @@ const App = () => (
             
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminPage />} />
+              <Route index element={<AgentsPage />} />
               <Route path="agents" element={<AgentsPage />} />
               <Route path="models" element={<ModelsPage />} />
               <Route path="tools" element={<ToolsPage />} />
