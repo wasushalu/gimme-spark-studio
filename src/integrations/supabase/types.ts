@@ -284,6 +284,95 @@ export type Database = {
           },
         ]
       }
+      knowledge_base_chunks: {
+        Row: {
+          agent_id: string
+          char_count: number
+          chunk_index: number
+          content: string
+          created_at: string
+          document_id: string
+          embedding: string | null
+          id: string
+          metadata: Json | null
+          word_count: number
+        }
+        Insert: {
+          agent_id: string
+          char_count: number
+          chunk_index: number
+          content: string
+          created_at?: string
+          document_id: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          word_count: number
+        }
+        Update: {
+          agent_id?: string
+          char_count?: number
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          document_id?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          word_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_base_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_base_documents: {
+        Row: {
+          agent_id: string
+          content_type: string
+          created_at: string
+          file_path: string
+          file_size: number
+          filename: string
+          id: string
+          mime_type: string
+          status: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          agent_id: string
+          content_type: string
+          created_at?: string
+          file_path: string
+          file_size: number
+          filename: string
+          id?: string
+          mime_type: string
+          status?: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          agent_id?: string
+          content_type?: string
+          created_at?: string
+          file_path?: string
+          file_size?: number
+          filename?: string
+          id?: string
+          mime_type?: string
+          status?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
       model_catalog: {
         Row: {
           created_at: string

@@ -1,4 +1,3 @@
-
 export interface Profile {
   id: string;
   first_name?: string;
@@ -125,5 +124,32 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface KnowledgeBaseDocument {
+  id: string;
+  agent_id: string;
+  filename: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  content_type: 'pdf' | 'text' | 'docx' | 'markdown';
+  status: 'processing' | 'completed' | 'failed';
+  uploaded_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeBaseChunk {
+  id: string;
+  document_id: string;
+  agent_id: string;
+  chunk_index: number;
+  content: string;
+  word_count: number;
+  char_count: number;
+  embedding: number[] | null;
+  metadata: Record<string, any>;
   created_at: string;
 }

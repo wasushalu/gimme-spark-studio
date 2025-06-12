@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Agent, AgentConfigVersion, ModelCatalog } from '@/types/database';
 import { Separator } from '@/components/ui/separator';
+import KnowledgeBaseUpload from './KnowledgeBaseUpload';
+import KnowledgeBaseDocuments from './KnowledgeBaseDocuments';
 
 interface AgentConfigFormProps {
   agent: Agent | null;
@@ -161,17 +163,18 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-6xl max-h-[90vh] overflow-y-auto">
         <CardHeader>
           <CardTitle>Configure Agent: {agent.label}</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="models" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="models">Models</TabsTrigger>
               <TabsTrigger value="parameters">Parameters</TabsTrigger>
               <TabsTrigger value="prompt">System Prompt</TabsTrigger>
               <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
+              <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>
 
             <TabsContent value="models" className="space-y-4">
@@ -350,7 +353,7 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
                     <Separator />
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="chunk-size">Chunk Size</Label>
+                        <Label htmlFor="chunk-size">Chunk Size (words)</Label>
                         <Input
                           id="chunk-size"
                           type="number"
@@ -363,9 +366,12 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
                             }
                           }))}
                         />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Optimal range: 200-500 words
+                        </p>
                       </div>
                       <div>
-                        <Label htmlFor="chunk-overlap">Chunk Overlap</Label>
+                        <Label htmlFor="chunk-overlap">Chunk Overlap (words)</Label>
                         <Input
                           id="chunk-overlap"
                           type="number"
@@ -378,6 +384,9 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
                             }
                           }))}
                         />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Usually 10-20% of chunk size
+                        </p>
                       </div>
                       <div>
                         <Label htmlFor="retrieval-depth">Retrieval Depth</Label>
@@ -393,6 +402,9 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
                             }
                           }))}
                         />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Number of relevant chunks to retrieve
+                        </p>
                       </div>
                       <div>
                         <Label htmlFor="keyword-extraction">Keyword Extraction</Label>
@@ -419,6 +431,13 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
                     </div>
                   </>
                 )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="documents" className="space-y-4">
+              <div className="grid gap-6">
+                <KnowledgeBaseUpload agentId={agent.agent_id} />
+                <KnowledgeBaseDocuments agentId={agent.agent_id} />
               </div>
             </TabsContent>
           </Tabs>
