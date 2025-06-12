@@ -5,7 +5,7 @@ import { useAuth } from './useAuth';
 import { agents } from '@/components/agents/AgentSelector';
 
 export function useChatData() {
-  const [activeAgent, setActiveAgent] = useState<'gimmebot' | 'creative_concept' | 'neutral_chat'>('gimmebot');
+  const [activeAgent, setActiveAgent] = useState<'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio'>('gimmebot');
   const { user } = useAuth();
   
   const { 
@@ -60,6 +60,8 @@ export function useChatData() {
         return 'Hello! I\'m your AI marketing assistant. How can I help you create amazing marketing content today?';
       } else if (prompt.includes('creative')) {
         return 'Hi there! I\'m your creative assistant. What creative project can I help you brainstorm today?';
+      } else if (prompt.includes('studio')) {
+        return 'Welcome to Studio! I\'m your creative command hub. What campaign or project can I help you with today?';
       } else {
         return 'Hello! I\'m here to help. What can I assist you with today?';
       }
@@ -83,7 +85,7 @@ export function useChatData() {
       clearGuestMessages();
     }
     
-    setActiveAgent(agentId as 'gimmebot' | 'creative_concept' | 'neutral_chat');
+    setActiveAgent(agentId as 'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio');
   }, [user, clearGuestMessages]);
 
   const handleSendMessage = useCallback((message: string) => {

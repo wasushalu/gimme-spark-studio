@@ -22,17 +22,19 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'gimmebot': Bot,
   'creative_concept': Palette,
   'neutral_chat': MessageCircle,
+  'studio': Palette,
   'default': Bot,
 };
 
 export function AgentSelector({ activeAgent, onAgentSelect }: AgentSelectorProps) {
   const { data: dbAgents, isLoading } = useQuery({
-    queryKey: ['public-agents'],
+    queryKey: ['all-agents'],
     queryFn: async () => {
+      // Fetch both public and workspace agents
       const { data, error } = await supabase
         .from('agents')
         .select('*')
-        .eq('visibility', 'public')
+        .in('visibility', ['public', 'workspace'])
         .order('created_at', { ascending: true });
       
       if (error) {
@@ -63,9 +65,9 @@ export function AgentSelector({ activeAgent, onAgentSelect }: AgentSelectorProps
       primary: true,
     },
     {
-      id: 'creative_concept',
-      name: 'studio',
-      description: 'Creative Ideas Generator',
+      id: 'studio',
+      name: 'Studio',
+      description: 'Creative Hub',
       icon: Palette,
       primary: false,
     },
@@ -126,9 +128,9 @@ export const agents = [
     primary: true,
   },
   {
-    id: 'creative_concept',
-    name: 'studio',
-    description: 'Creative Ideas Generator',
+    id: 'studio',
+    name: 'Studio',
+    description: 'Creative Hub',
     icon: Palette,
     primary: false,
   },

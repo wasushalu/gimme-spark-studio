@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AgentConfigVersion } from '@/types/database';
 
 export function useChatConfig(
-  agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat',
+  agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio',
   canUseAgent: boolean
 ) {
   return useQuery({

@@ -7,7 +7,7 @@ import { useChatConfig } from './useChatConfig';
 import { useChatMessages } from './useChatMessages';
 import { useChatConversation } from './useChatConversation';
 
-export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat', requireAuth = false) {
+export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio', requireAuth = false) {
   const queryClient = useQueryClient();
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
