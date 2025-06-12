@@ -1,13 +1,12 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Eye, EyeOff, Save, Key } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Eye, EyeOff, Save, Key, CheckCircle } from 'lucide-react';
+import { useApiKeys } from '@/hooks/useApiKeys';
 
 interface ApiKey {
   name: string;
@@ -39,10 +38,20 @@ const API_KEYS: ApiKey[] = [
 ];
 
 export default function ApiKeysPage() {
-  const { toast } = useToast();
+  const { saveApiKey, saveAllKeys, checkApiKeyStatus, loading, keyStatuses } = useApiKeys();
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
-  const [loading, setLoading] = useState(false);
+
+  // Check status of all API keys on component mount
+  useEffect(() => {
+    const checkAllKeyStatuses = async () => {
+      for (const keyConfig of API_KEYS) {
+        const exists = await checkApiKeyStatus(keyConfig.name);
+        // Update keyStatuses is handled by the hook
+      }
+    };
+    checkAllKeyStatuses();
+  }, [checkApiKeyStatus]);
 
   const toggleVisibility = (keyName: string) => {
     setVisibleKeys(prev => ({
@@ -58,47 +67,19 @@ export default function ApiKeysPage() {
     }));
   };
 
-  const saveApiKey = async (keyName: string) => {
-    setLoading(true);
-    try {
-      // Here you would integrate with Supabase secrets
-      // For now, we'll simulate the save
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      toast({
-        title: 'API Key Saved',
-        description: `${keyName} has been securely saved.`,
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save API key. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleSaveKey = async (keyName: string) => {
+    const value = apiKeys[keyName];
+    if (!value?.trim()) return;
+    
+    await saveApiKey(keyName, value);
+    // Clear the input after successful save
+    setApiKeys(prev => ({ ...prev, [keyName]: '' }));
   };
 
-  const saveAllKeys = async () => {
-    setLoading(true);
-    try {
-      // Here you would save all keys to Supabase secrets
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast({
-        title: 'All API Keys Saved',
-        description: 'All API keys have been securely saved.',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save some API keys. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleSaveAllKeys = async () => {
+    await saveAllKeys(apiKeys);
+    // Clear all inputs after successful save
+    setApiKeys({});
   };
 
   const groupedKeys = API_KEYS.reduce((acc, key) => {
@@ -116,7 +97,7 @@ export default function ApiKeysPage() {
           <h1 className="text-2xl font-bold text-gray-900">API Keys Management</h1>
           <p className="text-gray-600 mt-1">Securely manage all your service API keys in one place</p>
         </div>
-        <Button onClick={saveAllKeys} disabled={loading}>
+        <Button onClick={handleSaveAllKeys} disabled={loading || Object.keys(apiKeys).length === 0}>
           <Save className="w-4 h-4 mr-2" />
           Save All Keys
         </Button>
@@ -138,6 +119,12 @@ export default function ApiKeysPage() {
                     <Label htmlFor={keyConfig.name}>{keyConfig.label}</Label>
                     {keyConfig.required && (
                       <Badge variant="destructive" className="text-xs">Required</Badge>
+                    )}
+                    {keyStatuses[keyConfig.name] && (
+                      <Badge variant="default" className="text-xs bg-green-100 text-green-800">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Saved
+                      </Badge>
                     )}
                   </div>
                   
@@ -167,8 +154,8 @@ export default function ApiKeysPage() {
                     
                     <Button
                       variant="outline"
-                      onClick={() => saveApiKey(keyConfig.name)}
-                      disabled={loading || !apiKeys[keyConfig.name]}
+                      onClick={() => handleSaveKey(keyConfig.name)}
+                      disabled={loading || !apiKeys[keyConfig.name]?.trim()}
                     >
                       Save
                     </Button>
