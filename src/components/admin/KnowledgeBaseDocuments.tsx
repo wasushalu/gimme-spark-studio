@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { FileText, Trash2, Download, Eye, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { KnowledgeBaseDocument } from '@/types/database';
+import DocumentChunks from './DocumentChunks';
 
 interface KnowledgeBaseDocumentsProps {
   agentId: string;
@@ -145,45 +146,53 @@ export default function KnowledgeBaseDocuments({ agentId }: KnowledgeBaseDocumen
         ) : (
           <div className="space-y-4">
             {documents.map((document) => (
-              <div key={document.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-3 flex-1">
-                  {getStatusIcon(document.status)}
-                  <div className="flex-1">
-                    <h4 className="font-medium text-sm">{document.filename}</h4>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Badge variant="outline" className="text-xs">
-                        {document.content_type.toUpperCase()}
-                      </Badge>
-                      <Badge className={`text-xs ${getStatusColor(document.status)}`}>
-                        {document.status}
-                      </Badge>
-                      <span className="text-xs text-gray-500">
-                        {formatFileSize(document.file_size)}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(document.created_at).toLocaleDateString()}
-                      </span>
+              <div key={document.id} className="border rounded-lg">
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center space-x-3 flex-1">
+                    {getStatusIcon(document.status)}
+                    <div className="flex-1">
+                      <h4 className="font-medium text-sm">{document.filename}</h4>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <Badge variant="outline" className="text-xs">
+                          {document.content_type.toUpperCase()}
+                        </Badge>
+                        <Badge className={`text-xs ${getStatusColor(document.status)}`}>
+                          {document.status}
+                        </Badge>
+                        <span className="text-xs text-gray-500">
+                          {formatFileSize(document.file_size)}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(document.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => downloadDocument(document)}
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteDocumentMutation.mutate(document.id)}
+                      disabled={deleteDocumentMutation.isPending}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => downloadDocument(document)}
-                  >
-                    <Download className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => deleteDocumentMutation.mutate(document.id)}
-                    disabled={deleteDocumentMutation.isPending}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
+                {document.status === 'completed' && (
+                  <DocumentChunks 
+                    documentId={document.id} 
+                    filename={document.filename}
+                  />
+                )}
               </div>
             ))}
           </div>
