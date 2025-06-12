@@ -11,7 +11,8 @@ import {
   Wrench, 
   FileText, 
   LogOut,
-  Settings
+  Settings,
+  Key
 } from 'lucide-react';
 
 export default function AdminLayout() {
@@ -23,6 +24,7 @@ export default function AdminLayout() {
     { id: 'agents', label: 'Agents', icon: Bot, path: '/admin/agents' },
     { id: 'models', label: 'Model Catalog', icon: Cpu, path: '/admin/models' },
     { id: 'tools', label: 'Tool Registry', icon: Wrench, path: '/admin/tools' },
+    { id: 'api-keys', label: 'API Keys', icon: Key, path: '/admin/api-keys' },
     { id: 'logs', label: 'Logs', icon: FileText, path: '/admin/logs' },
   ];
 

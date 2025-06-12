@@ -127,8 +127,13 @@ export function useAgentConfig(agent: Agent | null) {
   useEffect(() => {
     if (currentConfig?.settings) {
       console.log('useAgentConfig: Updating config from currentConfig:', currentConfig.settings);
-      setConfig(currentConfig.settings);
-    } else if (models.length > 0) {
+      // Ensure prompt is preserved
+      const updatedConfig = {
+        ...currentConfig.settings,
+        prompt: currentConfig.settings.prompt || ''
+      };
+      setConfig(updatedConfig);
+    } else if (models.length > 0 && !currentConfig) {
       console.log('useAgentConfig: Creating default config from available models');
       setConfig(createDefaultConfig());
     }
@@ -137,6 +142,8 @@ export function useAgentConfig(agent: Agent | null) {
   const saveConfigMutation = useMutation({
     mutationFn: async (newConfig: any) => {
       if (!agent) throw new Error('No agent selected');
+      
+      console.log('useAgentConfig: Saving config with prompt:', newConfig.prompt);
       
       const nextVersion = (currentConfig?.version || 0) + 1;
       
@@ -149,7 +156,7 @@ export function useAgentConfig(agent: Agent | null) {
           .eq('is_active', true);
       }
 
-      // Insert new version
+      // Insert new version with the complete config including prompt
       const { error } = await supabase
         .from('agent_config_versions')
         .insert({
@@ -159,7 +166,12 @@ export function useAgentConfig(agent: Agent | null) {
           settings: newConfig
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('useAgentConfig: Error saving config:', error);
+        throw error;
+      }
+      
+      console.log('useAgentConfig: Config saved successfully');
     },
     onSuccess: () => {
       toast({
@@ -192,6 +204,7 @@ export function useAgentConfig(agent: Agent | null) {
     audioModels: getModelsByModality('audio').length,
     videoModels: getModelsByModality('video').length,
     configLoaded: !!config,
+    promptLength: config?.prompt?.length || 0,
     currentTextModel: config?.model?.text?.model,
     currentImageModel: config?.model?.image?.model,
     currentAudioModel: config?.model?.audio?.model,
