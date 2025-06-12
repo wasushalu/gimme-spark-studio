@@ -1,13 +1,15 @@
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Copy, Eye, Bot, Settings } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Plus } from 'lucide-react';
 import AgentConfigForm from '@/components/admin/AgentConfigForm';
+import AgentCard from '@/components/admin/AgentCard';
+import AgentsEmptyState from '@/components/admin/AgentsEmptyState';
+import AgentsDebugInfo from '@/components/admin/AgentsDebugInfo';
+import AgentsLoadingState from '@/components/admin/AgentsLoadingState';
+import AgentsErrorState from '@/components/admin/AgentsErrorState';
+import { useAgents } from '@/hooks/useAgents';
+import { useAgentActions } from '@/hooks/useAgentActions';
 
 interface Agent {
   id: string;
@@ -19,64 +21,23 @@ interface Agent {
 }
 
 export default function AgentsPage() {
-  const { toast } = useToast();
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [showConfigForm, setShowConfigForm] = useState(false);
 
-  const { data: agents, isLoading, error, refetch } = useQuery({
-    queryKey: ['admin-agents'],
-    queryFn: async () => {
-      console.log('Fetching agents...');
-      const { data, error } = await supabase
-        .from('agents')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      console.log('Agents query result:', { data, error });
-      
-      if (error) {
-        console.error('Error fetching agents:', error);
-        toast({
-          title: 'Error loading agents',
-          description: error.message,
-          variant: 'destructive',
-        });
-        throw error;
-      }
-      
-      console.log('Successfully fetched agents:', data);
-      return data as Agent[];
-    }
-  });
-
-  console.log('Current agents state:', { agents, isLoading, error });
+  const { data: agents, isLoading, error, refetch } = useAgents();
+  const { deleteAgent, createTestAgent } = useAgentActions();
 
   const handleDeleteAgent = async (agentId: string) => {
-    if (!confirm('Are you sure you want to delete this agent? This will also delete all its configurations.')) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('agents')
-        .delete()
-        .eq('agent_id', agentId);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Agent deleted',
-        description: 'The agent has been successfully deleted.',
-      });
-      
+    const success = await deleteAgent(agentId);
+    if (success) {
       refetch();
-    } catch (error) {
-      console.error('Error deleting agent:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete agent. Please try again.',
-        variant: 'destructive',
-      });
+    }
+  };
+
+  const handleCreateTestAgent = async () => {
+    const success = await createTestAgent();
+    if (success) {
+      refetch();
     }
   };
 
@@ -86,92 +47,14 @@ export default function AgentsPage() {
     setShowConfigForm(true);
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'root': return 'bg-blue-100 text-blue-800';
-      case 'sub': return 'bg-green-100 text-green-800';
-      case 'utility': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getVisibilityColor = (visibility: string) => {
-    switch (visibility) {
-      case 'public': return 'bg-emerald-100 text-emerald-800';
-      case 'workspace': return 'bg-orange-100 text-orange-800';
-      case 'internal': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const handleCreateTestAgent = async () => {
-    try {
-      const testAgent = {
-        agent_id: `test-agent-${Date.now()}`,
-        label: 'Test Agent',
-        type: 'root',
-        visibility: 'internal'
-      };
-
-      console.log('Creating test agent:', testAgent);
-      
-      const { data, error } = await supabase
-        .from('agents')
-        .insert(testAgent)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating test agent:', error);
-        throw error;
-      }
-
-      console.log('Test agent created:', data);
-      toast({
-        title: 'Test agent created',
-        description: 'A test agent has been created successfully.',
-      });
-      
-      refetch();
-    } catch (error) {
-      console.error('Error creating test agent:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create test agent. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
+  console.log('Current agents state:', { agents, isLoading, error });
 
   if (isLoading) {
-    return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid gap-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    return <AgentsLoadingState />;
   }
 
   if (error) {
-    return (
-      <div className="p-6">
-        <div className="text-center py-12">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Agent Management</h1>
-          <div className="text-red-600 mb-4">
-            <p>Error loading agents: {error.message}</p>
-          </div>
-          <Button onClick={() => refetch()}>
-            Try Again
-          </Button>
-        </div>
-      </div>
-    );
+    return <AgentsErrorState error={error} onRetry={() => refetch()} />;
   }
 
   return (
@@ -190,99 +73,24 @@ export default function AgentsPage() {
         </div>
       </div>
 
-      {/* Debug Information */}
-      <div className="mb-4 p-4 bg-gray-100 rounded-lg">
-        <h3 className="font-semibold mb-2">Debug Info:</h3>
-        <p>Agents count: {agents?.length || 0}</p>
-        <p>Loading: {isLoading ? 'Yes' : 'No'}</p>
-        <p>Error: {error ? error.message : 'None'}</p>
-        {agents && agents.length > 0 && (
-          <div className="mt-2">
-            <p>Sample agent IDs: {agents.slice(0, 3).map(a => a.agent_id).join(', ')}</p>
-          </div>
-        )}
-      </div>
+      <AgentsDebugInfo agents={agents} isLoading={isLoading} error={error} />
 
       <div className="grid gap-4">
         {agents?.map((agent) => (
-          <Card key={agent.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-lg font-medium">{agent.label}</CardTitle>
-              <div className="flex items-center space-x-2">
-                <Badge className={getTypeColor(agent.type)}>
-                  {agent.type}
-                </Badge>
-                <Badge className={getVisibilityColor(agent.visibility)}>
-                  {agent.visibility}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">
-                    Agent ID: <code className="bg-gray-100 px-1 rounded">{agent.agent_id}</code>
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Created: {new Date(agent.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleConfigureAgent(agent)}
-                  >
-                    <Settings className="w-4 h-4 mr-1" />
-                    Configure
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Eye className="w-4 h-4 mr-1" />
-                    View
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Copy className="w-4 h-4 mr-1" />
-                    Clone
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleDeleteAgent(agent.agent_id)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <AgentCard
+            key={agent.id}
+            agent={agent}
+            onConfigure={handleConfigureAgent}
+            onDelete={handleDeleteAgent}
+          />
         ))}
       </div>
 
       {(!agents || agents.length === 0) && (
-        <div className="text-center py-12">
-          <Bot className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No agents found</h3>
-          <p className="text-gray-500 mb-4">The database appears to be empty. Try creating a test agent or check the database connection.</p>
-          <div className="flex gap-2 justify-center">
-            <Button onClick={() => refetch()}>
-              Refresh
-            </Button>
-            <Button onClick={handleCreateTestAgent}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Test Agent
-            </Button>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Agent
-            </Button>
-          </div>
-        </div>
+        <AgentsEmptyState
+          onRefresh={() => refetch()}
+          onCreateTestAgent={handleCreateTestAgent}
+        />
       )}
 
       {showConfigForm && (
