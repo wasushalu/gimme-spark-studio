@@ -1,3 +1,4 @@
+
 export interface Profile {
   id: string;
   first_name?: string;
@@ -67,6 +68,7 @@ export interface AgentConfigVersion {
       top_p: number;
     };
     prompt: string;
+    welcome_message?: string;
     tools: string[];
     knowledge_base: {
       enabled: boolean;

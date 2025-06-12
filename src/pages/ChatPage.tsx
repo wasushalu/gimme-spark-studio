@@ -53,10 +53,19 @@ export default function ChatPage() {
   
   const [inputValue, setInputValue] = useState('');
 
+  // Transform ChatMessage[] to Message[] format
+  const transformedMessages: Message[] = messages.map(msg => ({
+    id: msg.id,
+    content: msg.content,
+    role: msg.role as 'user' | 'assistant',
+    timestamp: new Date(msg.created_at),
+  }));
+
   // Get welcome message from config or fallback
   const getWelcomeMessage = () => {
     if (configLoading) return 'Loading...';
     
+    // Check if agentConfig and settings exist, and if welcome_message is defined
     if (agentConfig?.settings?.welcome_message) {
       return agentConfig.settings.welcome_message;
     }
@@ -117,7 +126,7 @@ export default function ChatPage() {
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         {/* Welcome message */}
-        {messages.length === 0 && (
+        {transformedMessages.length === 0 && (
           <div className="flex justify-start">
             <div className="max-w-[70%] px-4 py-3 rounded-2xl bg-muted mr-12">
               <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -127,7 +136,7 @@ export default function ChatPage() {
           </div>
         )}
         
-        {messages.map((message) => (
+        {transformedMessages.map((message) => (
           <div
             key={message.id}
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}

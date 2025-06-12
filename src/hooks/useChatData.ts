@@ -22,6 +22,7 @@ export function useChatData() {
   const getWelcomeMessage = () => {
     if (configLoading) return 'Loading...';
     
+    // Check if agentConfig and settings exist, and if welcome_message is defined
     if (agentConfig?.settings?.welcome_message) {
       return agentConfig.settings.welcome_message;
     }
@@ -52,9 +53,17 @@ export function useChatData() {
     sendMessage({ content: message });
   };
 
+  // Transform ChatMessage[] to Message[] format expected by ChatInterface
+  const transformedMessages = messages.map(msg => ({
+    id: msg.id,
+    role: msg.role as 'user' | 'assistant',
+    content: msg.content,
+    timestamp: new Date(msg.created_at),
+  }));
+
   return {
     activeAgent,
-    messages,
+    messages: transformedMessages,
     isLoading: isLoading || messagesLoading || configLoading,
     currentAgent,
     agentConfig,
