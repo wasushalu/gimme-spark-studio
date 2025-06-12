@@ -47,10 +47,10 @@ export function useWorkspaceData() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(workspaces[0].projects[0]);
   const [selectedBrandVault, setSelectedBrandVault] = useState<BrandVault | null>(workspaces[0].projects[0].brandVaults[0]);
 
-  const addWorkspace = () => {
+  const addWorkspace = (name: string) => {
     const newWorkspace: Workspace = {
       id: Date.now().toString(),
-      name: `New Workspace ${workspaces.length + 1}`,
+      name: name,
       projects: []
     };
     const updatedWorkspaces = [...workspaces, newWorkspace];
@@ -60,12 +60,12 @@ export function useWorkspaceData() {
     setSelectedBrandVault(null);
   };
 
-  const addProject = () => {
+  const addProject = (name: string) => {
     if (!selectedWorkspace) return;
     
     const newProject: Project = {
       id: Date.now().toString(),
-      name: `New Project ${selectedWorkspace.projects.length + 1}`,
+      name: name,
       brandVaults: []
     };
     
@@ -82,12 +82,12 @@ export function useWorkspaceData() {
     setSelectedBrandVault(null);
   };
 
-  const addBrandVault = () => {
+  const addBrandVault = (name: string) => {
     if (!selectedWorkspace || !selectedProject) return;
     
     const newBrandVault: BrandVault = {
       id: Date.now().toString(),
-      name: `New Brand Vault ${selectedProject.brandVaults.length + 1}`
+      name: name
     };
     
     const updatedWorkspaces = workspaces.map(ws =>
