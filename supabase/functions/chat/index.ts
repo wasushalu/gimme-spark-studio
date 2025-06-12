@@ -14,9 +14,54 @@ serve(async (req) => {
   }
 
   try {
+    console.log('=== CHAT FUNCTION START ===');
+    console.log('Request method:', req.method);
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
+    
+    // Debug environment variables first
+    const allEnvVars = Deno.env.toObject();
+    const envVarNames = Object.keys(allEnvVars);
+    console.log('Total environment variables count:', envVarNames.length);
+    console.log('Environment variable names:', envVarNames);
+    
+    // Check for OpenAI key variations
+    const openaiKeyVariations = [
+      'OPENAI_API_KEY',
+      'OPENAI_KEY', 
+      'OPEN_AI_API_KEY',
+      'OPEN_AI_KEY'
+    ];
+    
+    let foundOpenAIKey = null;
+    let foundKeyName = null;
+    
+    for (const keyName of openaiKeyVariations) {
+      const keyValue = Deno.env.get(keyName);
+      if (keyValue) {
+        foundOpenAIKey = keyValue;
+        foundKeyName = keyName;
+        console.log(`Found OpenAI key with name: ${keyName}, length: ${keyValue.length}, starts with: ${keyValue.substring(0, 7)}...`);
+        break;
+      }
+    }
+    
+    if (!foundOpenAIKey) {
+      console.error('NO OpenAI API key found in any variation');
+      console.log('Checked variations:', openaiKeyVariations);
+      return new Response(JSON.stringify({ 
+        error: 'OpenAI API key not configured',
+        details: 'Please add OPENAI_API_KEY to your Supabase Edge Function secrets',
+        checkedKeys: openaiKeyVariations,
+        availableKeys: envVarNames.filter(key => key.toLowerCase().includes('openai'))
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { conversationId, message, agentType, agentConfig, isGuest } = await req.json();
     
-    console.log('Chat function called with:', { 
+    console.log('Request payload parsed:', { 
       conversationId, 
       agentType, 
       hasAgentConfig: !!agentConfig,
@@ -114,7 +159,7 @@ serve(async (req) => {
     try {
       if (textModel?.provider === 'openai') {
         console.log('Calling OpenAI with model:', textModel.model);
-        aiResponse = await callOpenAI(textModel.model, conversationHistory, config);
+        aiResponse = await callOpenAI(textModel.model, conversationHistory, config, foundOpenAIKey);
       } else if (textModel?.provider === 'anthropic') {
         console.log('Calling Anthropic with model:', textModel.model);
         aiResponse = await callAnthropic(textModel.model, conversationHistory, config);
@@ -124,13 +169,20 @@ serve(async (req) => {
       } else {
         // Default to OpenAI if provider not recognized
         console.log('Unknown provider, defaulting to OpenAI');
-        aiResponse = await callOpenAI('gpt-4o-mini', conversationHistory, config);
+        aiResponse = await callOpenAI('gpt-4o-mini', conversationHistory, config, foundOpenAIKey);
       }
     } catch (aiError) {
       console.error('Error calling AI service:', aiError);
+      console.error('AI error details:', {
+        message: aiError.message,
+        stack: aiError.stack,
+        name: aiError.name
+      });
       return new Response(JSON.stringify({ 
         error: 'Failed to get AI response',
-        details: aiError.message
+        details: aiError.message,
+        provider: textModel?.provider || 'openai',
+        model: textModel?.model || 'gpt-4o-mini'
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -176,12 +228,20 @@ serve(async (req) => {
       console.log('Guest user - AI response not saved to database');
     }
 
+    console.log('=== CHAT FUNCTION SUCCESS ===');
     return new Response(JSON.stringify({ response: aiResponse }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
+    console.error('=== CHAT FUNCTION ERROR ===');
     console.error('Error in chat function:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      cause: error.cause
+    });
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
       details: error.message,
@@ -237,64 +297,80 @@ async function getAgentPromptFromDatabase(supabaseClient: any, agentType: string
   }
 }
 
-async function callOpenAI(model: string, messages: any[], config: any) {
-  // Try multiple ways to get the OpenAI API key
-  const openAIApiKey = Deno.env.get('OPENAI_API_KEY') || Deno.env.get('OPENAI_KEY') || Deno.env.get('OPEN_AI_API_KEY');
-  
+async function callOpenAI(model: string, messages: any[], config: any, apiKey: string) {
+  console.log('=== OPENAI CALL START ===');
   console.log('OpenAI API Key status:', {
-    hasKey: !!openAIApiKey,
-    keyLength: openAIApiKey ? openAIApiKey.length : 0,
-    keyPrefix: openAIApiKey ? openAIApiKey.substring(0, 7) + '...' : 'none',
-    envVars: Object.keys(Deno.env.toObject()).filter(key => key.toLowerCase().includes('openai'))
+    hasKey: !!apiKey,
+    keyLength: apiKey ? apiKey.length : 0,
+    keyPrefix: apiKey ? apiKey.substring(0, 7) + '...' : 'none'
   });
 
-  if (!openAIApiKey) {
-    console.error('OpenAI API key not found in environment variables');
-    const allEnvKeys = Object.keys(Deno.env.toObject());
-    console.log('Available environment variables:', allEnvKeys);
-    throw new Error('OpenAI API key not configured. Please add OPENAI_API_KEY to your Supabase Edge Function secrets.');
+  if (!apiKey) {
+    console.error('OpenAI API key not provided to callOpenAI function');
+    throw new Error('OpenAI API key not provided');
   }
 
   const systemPrompt = config.prompt || 'You are a helpful assistant.';
   const temperature = config.generation?.temperature || 0.7;
   const maxTokens = config.generation?.max_response_tokens || 4000;
 
-  console.log('OpenAI call with system prompt length:', systemPrompt.length);
-  console.log('OpenAI messages count:', messages.length);
-  console.log('Using model:', model);
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openAIApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages
-      ],
-      temperature: temperature,
-      max_tokens: maxTokens,
-    }),
+  console.log('OpenAI call parameters:', {
+    model,
+    systemPromptLength: systemPrompt.length,
+    messagesCount: messages.length,
+    temperature,
+    maxTokens
   });
 
-  if (!response.ok) {
-    const errorData = await response.text();
-    console.error('OpenAI API error:', response.status, errorData);
-    throw new Error(`OpenAI API error: ${response.status} ${errorData}`);
-  }
+  const requestBody = {
+    model: model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      ...messages
+    ],
+    temperature: temperature,
+    max_tokens: maxTokens,
+  };
 
-  const data = await response.json();
-  console.log('OpenAI response structure:', Object.keys(data));
-  
-  if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-    console.error('Unexpected OpenAI response structure:', data);
-    throw new Error('Unexpected OpenAI response structure');
+  console.log('OpenAI request body:', JSON.stringify(requestBody, null, 2));
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('OpenAI response status:', response.status);
+    console.log('OpenAI response headers:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenAI API error response:', errorText);
+      throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('OpenAI response structure:', Object.keys(data));
+    console.log('OpenAI usage:', data.usage);
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Unexpected OpenAI response structure:', data);
+      throw new Error('Unexpected OpenAI response structure');
+    }
+    
+    const content = data.choices[0].message.content;
+    console.log('OpenAI response content length:', content?.length);
+    console.log('=== OPENAI CALL SUCCESS ===');
+    return content;
+  } catch (error) {
+    console.error('=== OPENAI CALL ERROR ===');
+    console.error('OpenAI call failed:', error);
+    throw error;
   }
-  
-  return data.choices[0].message.content;
 }
 
 async function callAnthropic(model: string, messages: any[], config: any) {
