@@ -4,22 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { FileText, Trash2, Download, Eye, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { FileText, Trash2, Download, Clock, CheckCircle, XCircle } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { KnowledgeBaseDocument } from '@/types/database';
 
 interface KnowledgeBaseDocumentsProps {
   agentId: string;
-}
-
-interface Document {
-  id: string;
-  filename: string;
-  file_size: number;
-  content_type: string;
-  status: 'processing' | 'completed' | 'failed';
-  created_at: string;
-  file_path: string;
 }
 
 export default function KnowledgeBaseDocuments({ agentId }: KnowledgeBaseDocumentsProps) {
@@ -34,72 +24,79 @@ export default function KnowledgeBaseDocuments({ agentId }: KnowledgeBaseDocumen
         .select('*')
         .eq('agent_id', agentId)
         .order('created_at', { ascending: false });
-
+      
       if (error) throw error;
-      return data as Document[];
+      return data as KnowledgeBaseDocument[];
     }
   });
 
   const deleteDocumentMutation = useMutation({
     mutationFn: async (documentId: string) => {
-      const document = documents.find(d => d.id === documentId);
-      if (!document) throw new Error('Document not found');
-
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from('knowledge-base')
-        .remove([document.file_path]);
-
-      if (storageError) throw storageError;
-
-      // Delete from database (chunks will be deleted via CASCADE)
-      const { error: dbError } = await supabase
+      const { error } = await supabase
         .from('knowledge_base_documents')
         .delete()
         .eq('id', documentId);
-
-      if (dbError) throw dbError;
+      
+      if (error) throw error;
     },
     onSuccess: () => {
       toast({
         title: 'Document deleted',
-        description: 'Document and all associated chunks have been removed.',
+        description: 'The document has been removed from the knowledge base.',
       });
       queryClient.invalidateQueries({ queryKey: ['knowledge-base-documents', agentId] });
     },
     onError: (error) => {
-      console.error('Delete error:', error);
+      console.error('Error deleting document:', error);
       toast({
-        title: 'Delete failed',
+        title: 'Error',
         description: 'Failed to delete document. Please try again.',
         variant: 'destructive',
       });
     }
   });
 
-  const downloadDocument = async (document: Document) => {
+  const downloadDocument = async (document: KnowledgeBaseDocument) => {
     try {
       const { data, error } = await supabase.storage
         .from('knowledge-base')
         .download(document.file_path);
-
+      
       if (error) throw error;
 
       const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
+      const a = window.document.createElement('a');
       a.href = url;
       a.download = document.filename;
-      document.body.appendChild(a);
+      window.document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      window.document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Download error:', error);
+      console.error('Error downloading document:', error);
       toast({
-        title: 'Download failed',
-        description: 'Failed to download document.',
+        title: 'Error',
+        description: 'Failed to download document. Please try again.',
         variant: 'destructive',
       });
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'processing': return 'bg-yellow-100 text-yellow-800';
+      case 'failed': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed': return <Eye className="w-4 h-4" />;
+      case 'processing': return <FileText className="w-4 h-4 animate-pulse" />;
+      case 'failed': return <AlertCircle className="w-4 h-4" />;
+      default: return <FileText className="w-4 h-4" />;
     }
   };
 
@@ -111,37 +108,11 @@ export default function KnowledgeBaseDocuments({ agentId }: KnowledgeBaseDocumen
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'processing':
-        return <Clock className="w-4 h-4 text-yellow-600" />;
-      case 'completed':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'failed':
-        return <XCircle className="w-4 h-4 text-red-600" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'processing':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'failed':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Documents</CardTitle>
+          <CardTitle>Knowledge Base Documents</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-4">
@@ -157,42 +128,45 @@ export default function KnowledgeBaseDocuments({ agentId }: KnowledgeBaseDocumen
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="w-5 h-5" />
-          Documents ({documents.length})
-        </CardTitle>
+        <CardTitle>Knowledge Base Documents</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          {documents.length} document{documents.length !== 1 ? 's' : ''} uploaded
+        </p>
       </CardHeader>
       <CardContent>
         {documents.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No documents uploaded yet.</p>
-            <p className="text-sm">Upload documents to build the knowledge base for this agent.</p>
+          <div className="text-center py-8">
+            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">No documents uploaded yet.</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Upload documents above to build your knowledge base.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
             {documents.map((document) => (
-              <div
-                key={document.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-              >
-                <div className="flex items-center gap-3">
-                  <FileText className="w-8 h-8 text-gray-400" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-medium">{document.filename}</h4>
-                      <Badge className={getStatusColor(document.status)}>
-                        {getStatusIcon(document.status)}
+              <div key={document.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center space-x-3 flex-1">
+                  {getStatusIcon(document.status)}
+                  <div className="flex-1">
+                    <h4 className="font-medium text-sm">{document.filename}</h4>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <Badge variant="outline" className="text-xs">
+                        {document.content_type.toUpperCase()}
+                      </Badge>
+                      <Badge className={`text-xs ${getStatusColor(document.status)}`}>
                         {document.status}
                       </Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {formatFileSize(document.file_size)} • {document.content_type.toUpperCase()} • 
-                      Uploaded {formatDistanceToNow(new Date(document.created_at), { addSuffix: true })}
+                      <span className="text-xs text-gray-500">
+                        {formatFileSize(document.file_size)}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(document.created_at).toLocaleDateString()}
+                      </span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center space-x-2">
                   <Button
                     variant="outline"
                     size="sm"

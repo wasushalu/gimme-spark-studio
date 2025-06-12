@@ -58,19 +58,33 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
     }
   });
 
-  // Fetch available models
-  const { data: models = [] } = useQuery({
-    queryKey: ['models'],
+  // Fetch available models with better error handling and debugging
+  const { data: models = [], isLoading: modelsLoading, error: modelsError } = useQuery({
+    queryKey: ['models-for-config'],
     queryFn: async () => {
+      console.log('Fetching models for agent configuration...');
       const { data, error } = await supabase
         .from('model_catalog')
         .select('*')
-        .eq('enabled', true);
+        .eq('enabled', true)
+        .order('provider', { ascending: true })
+        .order('model_name', { ascending: true });
       
-      if (error) throw error;
+      console.log('Models query result:', { data, error, count: data?.length });
+      
+      if (error) {
+        console.error('Error fetching models for config:', error);
+        throw error;
+      }
+      
       return data as ModelCatalog[];
     }
   });
+
+  // Log models data for debugging
+  console.log('Available models in config:', models);
+  console.log('Models loading state:', modelsLoading);
+  console.log('Models error:', modelsError);
 
   const [config, setConfig] = useState(() => {
     const defaultConfig = {
@@ -158,14 +172,33 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
   };
 
   const getModelsByModality = (modality: string) => {
+    console.log(`Getting models for modality: ${modality}`, models?.filter(model => model.modality === modality));
     return models.filter(model => model.modality === modality);
   };
+
+  // Show error state if models failed to load
+  if (modelsError) {
+    console.error('Models loading error:', modelsError);
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <Card className="w-full max-w-6xl max-h-[90vh] overflow-y-auto">
         <CardHeader>
           <CardTitle>Configure Agent: {agent.label}</CardTitle>
+          {modelsError && (
+            <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+              Error loading models: {modelsError.message}
+            </div>
+          )}
+          {modelsLoading && (
+            <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+              Loading available models...
+            </div>
+          )}
+          <div className="text-sm text-gray-600">
+            Available models: {models.length} ({models.filter(m => m.modality === 'text').length} text, {models.filter(m => m.modality === 'image').length} image)
+          </div>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="models" className="w-full">
@@ -185,6 +218,7 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
                     value={config.model.text.model}
                     onValueChange={(value) => {
                       const selectedModel = models.find(m => m.model_name === value && m.modality === 'text');
+                      console.log('Selected text model:', selectedModel);
                       setConfig(prev => ({
                         ...prev,
                         model: {
@@ -206,8 +240,16 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
                           {model.provider} - {model.model_name}
                         </SelectItem>
                       ))}
+                      {getModelsByModality('text').length === 0 && (
+                        <SelectItem value="no-models" disabled>
+                          No text models available
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {getModelsByModality('text').length} text models available
+                  </p>
                 </div>
 
                 <div>
@@ -216,6 +258,7 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
                     value={config.model.image.model}
                     onValueChange={(value) => {
                       const selectedModel = models.find(m => m.model_name === value && m.modality === 'image');
+                      console.log('Selected image model:', selectedModel);
                       setConfig(prev => ({
                         ...prev,
                         model: {
@@ -237,8 +280,16 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
                           {model.provider} - {model.model_name}
                         </SelectItem>
                       ))}
+                      {getModelsByModality('image').length === 0 && (
+                        <SelectItem value="no-models" disabled>
+                          No image models available
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {getModelsByModality('image').length} image models available
+                  </p>
                 </div>
               </div>
             </TabsContent>
