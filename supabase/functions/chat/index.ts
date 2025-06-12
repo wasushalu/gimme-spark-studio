@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -85,17 +86,6 @@ serve(async (req) => {
       };
     }
 
-    // Validate and fix model configuration
-    const textModel = config.model?.text;
-    if (textModel?.provider === 'openai') {
-      // Map common invalid model names to valid ones
-      const validOpenAIModels = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'];
-      if (!validOpenAIModels.includes(textModel.model)) {
-        console.log(`Invalid OpenAI model "${textModel.model}", falling back to gpt-4o-mini`);
-        textModel.model = 'gpt-4o-mini';
-      }
-    }
-
     console.log('Final config:', {
       modelProvider: config.model?.text?.provider,
       modelName: config.model?.text?.model,
@@ -118,6 +108,7 @@ serve(async (req) => {
     console.log('Conversation history:', conversationHistory.length, 'messages');
 
     // Determine which AI service to use based on the configured model
+    const textModel = config.model?.text;
     let aiResponse;
 
     try {
@@ -247,9 +238,21 @@ async function getAgentPromptFromDatabase(supabaseClient: any, agentType: string
 }
 
 async function callOpenAI(model: string, messages: any[], config: any) {
-  const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+  // Try multiple ways to get the OpenAI API key
+  const openAIApiKey = Deno.env.get('OPENAI_API_KEY') || Deno.env.get('OPENAI_KEY') || Deno.env.get('OPEN_AI_API_KEY');
+  
+  console.log('OpenAI API Key status:', {
+    hasKey: !!openAIApiKey,
+    keyLength: openAIApiKey ? openAIApiKey.length : 0,
+    keyPrefix: openAIApiKey ? openAIApiKey.substring(0, 7) + '...' : 'none',
+    envVars: Object.keys(Deno.env.toObject()).filter(key => key.toLowerCase().includes('openai'))
+  });
+
   if (!openAIApiKey) {
-    throw new Error('OpenAI API key not configured');
+    console.error('OpenAI API key not found in environment variables');
+    const allEnvKeys = Object.keys(Deno.env.toObject());
+    console.log('Available environment variables:', allEnvKeys);
+    throw new Error('OpenAI API key not configured. Please add OPENAI_API_KEY to your Supabase Edge Function secrets.');
   }
 
   const systemPrompt = config.prompt || 'You are a helpful assistant.';
@@ -258,6 +261,7 @@ async function callOpenAI(model: string, messages: any[], config: any) {
 
   console.log('OpenAI call with system prompt length:', systemPrompt.length);
   console.log('OpenAI messages count:', messages.length);
+  console.log('Using model:', model);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
