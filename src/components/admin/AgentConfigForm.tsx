@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,13 +13,30 @@ import { Agent, AgentConfigVersion, ModelCatalog } from '@/types/database';
 import { Separator } from '@/components/ui/separator';
 
 interface AgentConfigFormProps {
-  agent: Agent;
+  agent: Agent | null;
   onClose: () => void;
 }
 
 export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Early return if no agent is provided
+  if (!agent) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-red-600 mb-4">No agent selected for configuration.</p>
+            <Button onClick={onClose}>Close</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Fetch current agent configuration
   const { data: currentConfig } = useQuery({
