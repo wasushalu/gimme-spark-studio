@@ -26,7 +26,6 @@ export default function AgentsPage() {
   const { data: agents, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-agents'],
     queryFn: async () => {
-      console.log('Fetching agents from database...');
       const { data, error } = await supabase
         .from('agents')
         .select('*')
@@ -42,7 +41,6 @@ export default function AgentsPage() {
         throw error;
       }
       
-      console.log('Agents fetched:', data);
       return data as Agent[];
     }
   });
@@ -140,18 +138,6 @@ export default function AgentsPage() {
         </Button>
       </div>
 
-      {/* Debug info */}
-      <div className="mb-4 p-4 bg-gray-100 rounded">
-        <p className="text-sm text-gray-600">
-          Debug: Found {agents?.length || 0} agents in database
-        </p>
-        {agents && agents.length === 0 && (
-          <p className="text-sm text-orange-600 mt-2">
-            No agents found. The database might need to be seeded with initial agents.
-          </p>
-        )}
-      </div>
-
       <div className="grid gap-4">
         {agents?.map((agent) => (
           <Card key={agent.id} className="hover:shadow-md transition-shadow">
@@ -217,10 +203,10 @@ export default function AgentsPage() {
         <div className="text-center py-12">
           <Bot className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No agents found</h3>
-          <p className="text-gray-500 mb-4">The database appears to be empty. Initial agents should be seeded.</p>
-          <Button onClick={() => refetch()}>
+          <p className="text-gray-500 mb-4">Get started by creating your first agent.</p>
+          <Button>
             <Plus className="w-4 h-4 mr-2" />
-            Refresh
+            Create Agent
           </Button>
         </div>
       )}
