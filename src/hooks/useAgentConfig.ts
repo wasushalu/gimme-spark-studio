@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -102,9 +102,23 @@ export function useAgentConfig(agent: Agent | null) {
     }
   };
 
+  // Initialize config state with proper default values
   const [config, setConfig] = useState(() => {
-    return currentConfig?.settings || defaultConfig;
+    const initialConfig = currentConfig?.settings || defaultConfig;
+    console.log('useAgentConfig: Initializing config state:', initialConfig);
+    return initialConfig;
   });
+
+  // Update config when currentConfig changes
+  useEffect(() => {
+    if (currentConfig?.settings) {
+      console.log('useAgentConfig: Updating config from currentConfig:', currentConfig.settings);
+      setConfig(currentConfig.settings);
+    } else {
+      console.log('useAgentConfig: Using default config');
+      setConfig(defaultConfig);
+    }
+  }, [currentConfig]);
 
   const saveConfigMutation = useMutation({
     mutationFn: async (newConfig: any) => {
@@ -155,6 +169,13 @@ export function useAgentConfig(agent: Agent | null) {
     console.log(`useAgentConfig: getModelsByModality(${modality}) returning ${filtered.length} models:`, filtered);
     return filtered;
   };
+
+  console.log('useAgentConfig: Current hook state:', {
+    configLoaded: !!config,
+    modelsLoaded: models.length > 0,
+    currentConfigFromDB: !!currentConfig,
+    agentId: agent?.agent_id
+  });
 
   return {
     config,
