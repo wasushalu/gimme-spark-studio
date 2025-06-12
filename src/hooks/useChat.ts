@@ -26,7 +26,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
 
       if (configError) {
         console.error('useChat: Error fetching agent config:', configError);
-        throw configError;
+        return null; // Return null instead of throwing to allow fallback
       }
       
       console.log('useChat: Agent config result:', configData);
@@ -47,7 +47,10 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
         .eq('conversation_id', currentConversationId)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching messages:', error);
+        return [];
+      }
       return data as ChatMessage[];
     },
     enabled: !!currentConversationId,
@@ -65,7 +68,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
         .insert({
           user_id: user.id,
           agent_type: agentType,
-          title,
+          title: title || `New ${agentType} conversation`,
           workspace_id: workspaceId,
         })
         .select()
@@ -94,6 +97,10 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     mutationFn: async ({ content, conversationId }: { content: string; conversationId?: string }) => {
       console.log('Sending message:', content);
       
+      if (!user) {
+        throw new Error('Must be authenticated to send messages');
+      }
+
       let activeConversationId = conversationId || currentConversationId;
 
       // Create conversation if none exists
@@ -123,15 +130,16 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
 
       console.log('User message saved:', userMessage);
 
-      // Call edge function to get AI response, passing the agent configuration
-      console.log('Calling edge function with config:', agentConfig?.settings);
+      // Prepare agent config for edge function
+      const configToSend = agentConfig?.settings || null;
+      console.log('Calling edge function with config:', configToSend);
       
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke('chat', {
         body: {
           conversationId: activeConversationId,
           message: content,
           agentType,
-          agentConfig: agentConfig?.settings,
+          agentConfig: configToSend,
         },
       });
 
@@ -150,13 +158,14 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     },
     onError: (error) => {
       console.error('Failed to send message:', error);
-      toast.error('Failed to send message');
+      toast.error(`Failed to send message: ${error.message}`);
     },
   });
 
   const startNewConversation = useCallback(() => {
     setCurrentConversationId(null);
-  }, []);
+    queryClient.removeQueries({ queryKey: ['chat-messages'] });
+  }, [queryClient]);
 
   const sendMessage = useCallback(async ({ content }: { content: string }) => {
     if (!content.trim()) return;
