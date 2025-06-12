@@ -88,10 +88,20 @@ export default function ModelsPage() {
     }
   };
 
-  const filteredModels = models?.filter(model =>
-    model.model_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    model.provider.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter models based on search term
+  const filteredModels = models?.filter(model => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      model.model_name.toLowerCase().includes(searchLower) ||
+      model.provider.toLowerCase().includes(searchLower) ||
+      model.modality.toLowerCase().includes(searchLower)
+    );
+  }) || [];
+
+  console.log('Filtered models:', filteredModels);
+  console.log('Search term:', searchTerm);
+  console.log('Total models:', models?.length);
 
   if (error) {
     return (
@@ -139,7 +149,7 @@ export default function ModelsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Model Catalog</h1>
           <p className="text-sm text-gray-600 mt-1">
-            {models?.length || 0} models available
+            {filteredModels.length} of {models?.length || 0} models
           </p>
         </div>
         <div className="flex space-x-2">
@@ -167,7 +177,7 @@ export default function ModelsPage() {
       </div>
 
       <div className="grid gap-4">
-        {filteredModels?.map((model) => (
+        {filteredModels.map((model) => (
           <Card key={model.id} className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-lg font-medium">{model.model_name}</CardTitle>
@@ -220,7 +230,7 @@ export default function ModelsPage() {
         ))}
       </div>
 
-      {(!filteredModels || filteredModels.length === 0) && (
+      {filteredModels.length === 0 && (
         <div className="text-center py-12">
           <div className="text-lg font-medium text-gray-900 mb-2">
             {searchTerm ? 'No models match your search' : 'No models found'}
