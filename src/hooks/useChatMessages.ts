@@ -4,6 +4,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { ChatMessage, AgentConfigVersion } from '@/types/database';
 import { toast } from 'sonner';
 import type { User } from '@supabase/supabase-js';
+import { useState, useCallback } from 'react';
+
+// Local message type for guest users
+interface LocalMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+  conversation_id?: string;
+}
 
 export function useChatMessages(
   currentConversationId: string | null,
@@ -11,6 +21,9 @@ export function useChatMessages(
   canUseAgent: boolean
 ) {
   const queryClient = useQueryClient();
+  
+  // Local state for guest user messages
+  const [guestMessages, setGuestMessages] = useState<LocalMessage[]>([]);
 
   const messagesQuery = useQuery({
     queryKey: ['chat-messages', currentConversationId],
@@ -32,6 +45,17 @@ export function useChatMessages(
     enabled: !!currentConversationId && !!user && canUseAgent,
     staleTime: 1000, // 1 second - messages should be fresh
   });
+
+  // Return guest messages for non-authenticated users, database messages for authenticated users
+  const messages = user ? (messagesQuery.data || []) : guestMessages;
+
+  const addGuestMessage = useCallback((message: LocalMessage) => {
+    setGuestMessages(prev => [...prev, message]);
+  }, []);
+
+  const clearGuestMessages = useCallback(() => {
+    setGuestMessages([]);
+  }, []);
 
   const sendMessageMutation = useMutation({
     mutationFn: async ({ 
@@ -67,6 +91,17 @@ export function useChatMessages(
       }
 
       console.log('Using conversation ID:', activeConversationId);
+
+      // For guest users, add user message to local state immediately
+      if (!user) {
+        const userMessage: LocalMessage = {
+          id: `temp-user-${Date.now()}`,
+          role: 'user',
+          content,
+          created_at: new Date().toISOString(),
+        };
+        addGuestMessage(userMessage);
+      }
 
       // For authenticated users, save user message to database
       let userMessage = null;
@@ -129,6 +164,17 @@ export function useChatMessages(
         throw new Error('Invalid response from AI service');
       }
 
+      // For guest users, add AI response to local state immediately
+      if (!user) {
+        const aiMessage: LocalMessage = {
+          id: `temp-ai-${Date.now()}`,
+          role: 'assistant',
+          content: aiResponse.response,
+          created_at: new Date().toISOString(),
+        };
+        addGuestMessage(aiMessage);
+      }
+
       console.log('=== FRONTEND MESSAGE SEND SUCCESS ===');
       console.log('Final AI response content:', aiResponse.response);
 
@@ -138,7 +184,11 @@ export function useChatMessages(
       console.log('=== MUTATION SUCCESS ===');
       console.log('Message sent successfully, invalidating queries');
       console.log('Success data:', data);
-      queryClient.invalidateQueries({ queryKey: ['chat-messages', currentConversationId] });
+      
+      // Only invalidate queries for authenticated users
+      if (user) {
+        queryClient.invalidateQueries({ queryKey: ['chat-messages', currentConversationId] });
+      }
     },
     onError: (error) => {
       console.error('=== MUTATION ERROR ===');
@@ -148,8 +198,9 @@ export function useChatMessages(
   });
 
   return {
-    messages: messagesQuery.data || [],
+    messages,
     messagesLoading: messagesQuery.isLoading,
     sendMessageMutation,
+    clearGuestMessages, // Export this for when user switches agents or signs in
   };
 }

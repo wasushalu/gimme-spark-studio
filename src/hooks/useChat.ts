@@ -16,7 +16,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
   
   const { data: agentConfig, isLoading: configLoading } = useChatConfig(agentType, canUseAgent);
   
-  const { messages, messagesLoading, sendMessageMutation } = useChatMessages(
+  const { messages, messagesLoading, sendMessageMutation, clearGuestMessages } = useChatMessages(
     currentConversationId,
     user,
     canUseAgent
@@ -31,7 +31,12 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
   const startNewConversation = useCallback(() => {
     setCurrentConversationId(null);
     queryClient.removeQueries({ queryKey: ['chat-messages'] });
-  }, [queryClient]);
+    
+    // Clear guest messages when starting new conversation
+    if (!user && clearGuestMessages) {
+      clearGuestMessages();
+    }
+  }, [queryClient, user, clearGuestMessages]);
 
   const sendMessage = useCallback(async ({ content }: { content: string }) => {
     if (!content.trim()) return;
@@ -67,5 +72,6 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     createConversation: createConversationMutation.mutate,
     canUseAgent,
     needsAuth,
+    clearGuestMessages,
   };
 }

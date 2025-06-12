@@ -16,7 +16,8 @@ export function useChatData() {
     sendMessage, 
     isLoading,
     canUseAgent,
-    needsAuth
+    needsAuth,
+    clearGuestMessages
   } = useChat(activeAgent, false);
 
   // Get the base agent info (name, description, icon) from the static config
@@ -64,8 +65,14 @@ export function useChatData() {
   const handleAgentSelect = useCallback((agentId: string) => {
     console.log('=== AGENT SELECTION ===');
     console.log('Switching to agent:', agentId);
+    
+    // Clear guest messages when switching agents
+    if (!user && clearGuestMessages) {
+      clearGuestMessages();
+    }
+    
     setActiveAgent(agentId as 'gimmebot' | 'creative_concept' | 'neutral_chat');
-  }, []);
+  }, [user, clearGuestMessages]);
 
   const handleSendMessage = useCallback((message: string) => {
     console.log('=== HANDLE SEND MESSAGE START ===');
