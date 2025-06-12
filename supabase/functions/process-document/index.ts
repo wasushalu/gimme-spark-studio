@@ -12,8 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { documentId, filePath, agentId } = await req.json()
-    console.log(`Processing document: ${documentId}, file: ${filePath}, agent: ${agentId}`)
+    const { documentId, filePath, agentId, documentTitle } = await req.json()
+    console.log(`Processing document: ${documentId}, file: ${filePath}, agent: ${agentId}, title: ${documentTitle}`)
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -97,10 +97,14 @@ serve(async (req) => {
       extractedText = `Document uploaded: ${fileName}. No text content could be extracted.`
     }
 
-    console.log(`Final extracted text length: ${extractedText.length} characters`)
+    // Add document title to the beginning of extracted text for better search matching
+    const titleForSearch = documentTitle || fileName.replace(/\.[^/.]+$/, "")
+    const fullTextWithTitle = `Document Title: ${titleForSearch}\n\n${extractedText}`
+
+    console.log(`Final extracted text length: ${fullTextWithTitle.length} characters`)
 
     // Chunk the text using best practices
-    const chunks = chunkText(extractedText, {
+    const chunks = chunkText(fullTextWithTitle, {
       chunkSize: 300,
       chunkOverlap: 50,
       preserveSentences: true
@@ -155,6 +159,8 @@ serve(async (req) => {
           endIndex: chunk.endIndex,
           fileName: fileName,
           fileExtension: fileExtension,
+          documentTitle: titleForSearch,
+          originalTextLength: extractedText.length,
         }
       })
     }
@@ -191,7 +197,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         chunksCreated: chunks.length,
-        extractedTextLength: extractedText.length,
+        extractedTextLength: fullTextWithTitle.length,
+        documentTitle: titleForSearch,
         message: 'Document processed successfully'
       }),
       { 
