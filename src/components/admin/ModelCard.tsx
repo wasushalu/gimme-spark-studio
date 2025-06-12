@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
 import { getModalityColor, getProviderColor } from '@/utils/modelUtils';
+import ModelApiStatus from './ModelApiStatus';
 
 interface Model {
   id: string;
@@ -31,6 +32,7 @@ export default function ModelCard({ model, onToggleStatus }: ModelCardProps) {
           <Badge className={getModalityColor(model.modality)}>
             {model.modality}
           </Badge>
+          <ModelApiStatus provider={model.provider} modelName={model.model_name} />
           <Badge variant={model.enabled ? 'default' : 'secondary'}>
             {model.enabled ? 'Enabled' : 'Disabled'}
           </Badge>

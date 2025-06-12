@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import ModelCard from '@/components/admin/ModelCard';
 import ModelSearch from '@/components/admin/ModelSearch';
 import { filterModels } from '@/utils/modelUtils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Model {
   id: string;
@@ -22,6 +23,8 @@ interface Model {
 export default function ModelsPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedModality, setSelectedModality] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'modality' | 'provider' | 'name'>('modality');
 
   const { data: models, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-models'],
@@ -82,16 +85,46 @@ export default function ModelsPage() {
     }
   };
 
-  const filteredModels = filterModels(models || [], searchTerm);
+  // Filter and sort models
+  const filteredAndSortedModels = (() => {
+    let filtered = filterModels(models || [], searchTerm);
+    
+    // Filter by modality
+    if (selectedModality !== 'all') {
+      filtered = filtered.filter(model => model.modality === selectedModality);
+    }
+    
+    // Sort models
+    return filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'modality':
+          if (a.modality !== b.modality) return a.modality.localeCompare(b.modality);
+          if (a.provider !== b.provider) return a.provider.localeCompare(b.provider);
+          return a.model_name.localeCompare(b.model_name);
+        case 'provider':
+          if (a.provider !== b.provider) return a.provider.localeCompare(b.provider);
+          if (a.modality !== b.modality) return a.modality.localeCompare(b.modality);
+          return a.model_name.localeCompare(b.model_name);
+        case 'name':
+          return a.model_name.localeCompare(b.model_name);
+        default:
+          return 0;
+      }
+    });
+  })();
+
+  const availableModalities = models ? [...new Set(models.map(m => m.modality))] : [];
 
   console.log('ModelsPage: Render state:', {
     totalModels: models?.length || 0,
-    filteredModels: filteredModels?.length || 0,
+    filteredModels: filteredAndSortedModels?.length || 0,
     searchTerm,
+    selectedModality,
+    sortBy,
     isLoading,
     error: error?.message,
     providers: models ? [...new Set(models.map(m => m.provider))] : [],
-    modalities: models ? [...new Set(models.map(m => m.modality))] : []
+    modalities: availableModalities
   });
 
   if (error) {
@@ -140,7 +173,7 @@ export default function ModelsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Model Catalog</h1>
           <p className="text-sm text-gray-600 mt-1">
-            {filteredModels.length} of {models?.length || 0} models
+            {filteredAndSortedModels.length} of {models?.length || 0} models
             {models && models.length > 0 && (
               <span className="ml-2">
                 ({models.filter(m => m.modality === 'text').length} text, {models.filter(m => m.modality === 'image').length} image, {models.filter(m => m.modality === 'audio').length} audio, {models.filter(m => m.modality === 'video').length} video)
@@ -160,7 +193,38 @@ export default function ModelsPage() {
         </div>
       </div>
 
-      <ModelSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+      {/* Search and Filter Controls */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex-1">
+          <ModelSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+        </div>
+        <div className="flex gap-2">
+          <Select value={selectedModality} onValueChange={setSelectedModality}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {availableModalities.map((modality) => (
+                <SelectItem key={modality} value={modality}>
+                  {modality.charAt(0).toUpperCase() + modality.slice(1)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Select value={sortBy} onValueChange={(value: 'modality' | 'provider' | 'name') => setSortBy(value)}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="modality">Sort by Type</SelectItem>
+              <SelectItem value="provider">Sort by Provider</SelectItem>
+              <SelectItem value="name">Sort by Name</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {/* Stats cards for quick overview */}
       {models && models.length > 0 && (
@@ -215,8 +279,8 @@ export default function ModelsPage() {
       )}
 
       <div className="grid gap-4">
-        {filteredModels && filteredModels.length > 0 ? (
-          filteredModels.map((model) => (
+        {filteredAndSortedModels && filteredAndSortedModels.length > 0 ? (
+          filteredAndSortedModels.map((model) => (
             <ModelCard 
               key={model.id} 
               model={model} 
@@ -226,17 +290,17 @@ export default function ModelsPage() {
         ) : (
           <div className="text-center py-12">
             <div className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm ? 'No models match your search' : 'No models found'}
+              {searchTerm || selectedModality !== 'all' ? 'No models match your filters' : 'No models found'}
             </div>
             <p className="text-gray-500 mb-4">
-              {searchTerm 
-                ? 'Try adjusting your search terms.' 
+              {searchTerm || selectedModality !== 'all'
+                ? 'Try adjusting your search terms or filters.' 
                 : models && models.length === 0 
                   ? 'No models have been added to the catalog yet.'
                   : 'Get started by adding your first model.'
               }
             </p>
-            {!searchTerm && (
+            {!searchTerm && selectedModality === 'all' && (
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Model
@@ -260,7 +324,9 @@ export default function ModelsPage() {
             <p>Video models: {models.filter(m => m.modality === 'video').length}</p>
             <p>Enabled models: {models.filter(m => m.enabled).length}</p>
             <p>Search term: "{searchTerm}"</p>
-            <p>Filtered results: {filteredModels.length}</p>
+            <p>Selected modality: "{selectedModality}"</p>
+            <p>Sort by: "{sortBy}"</p>
+            <p>Filtered results: {filteredAndSortedModels.length}</p>
           </div>
         </div>
       )}
