@@ -674,7 +674,7 @@ export type Database = {
       }
     }
     Enums: {
-      agent_type: "gimmebot" | "creative_concept" | "neutral_chat"
+      agent_type: "gimmebot" | "creative_concept" | "neutral_chat" | "studio"
       workspace_role: "owner" | "admin" | "editor" | "viewer"
     }
     CompositeTypes: {
@@ -791,7 +791,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      agent_type: ["gimmebot", "creative_concept", "neutral_chat"],
+      agent_type: ["gimmebot", "creative_concept", "neutral_chat", "studio"],
       workspace_role: ["owner", "admin", "editor", "viewer"],
     },
   },

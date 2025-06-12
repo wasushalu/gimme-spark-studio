@@ -1,6 +1,5 @@
 
 import type { User } from '@supabase/supabase-js';
-import { AgentConfigVersion } from '@/types/database';
 import { useGuestMessages } from './useGuestMessages';
 import { useSendMessage } from './useSendMessage';
 import { useDatabaseMessages } from './useDatabaseMessages';
