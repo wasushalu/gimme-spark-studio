@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -67,21 +66,22 @@ serve(async (req) => {
       console.log('Guest user or no conversation - starting fresh conversation');
     }
 
-    // Use agent configuration if available, otherwise fallback to basic defaults
+    // Get agent configuration from database if not provided
     let config;
     if (agentConfig && typeof agentConfig === 'object') {
       console.log('Using provided agent config');
       config = {
         model: agentConfig.model || { text: { provider: 'openai', model: 'gpt-4o-mini' } },
         generation: agentConfig.generation || { temperature: 0.7, max_response_tokens: 4000 },
-        prompt: agentConfig.prompt || getDefaultPrompt(agentType)
+        prompt: agentConfig.prompt || await getAgentPromptFromDatabase(supabaseClient, agentType)
       };
     } else {
-      console.log('No valid agent config provided, using fallback for agent type:', agentType);
+      console.log('No agent config provided, fetching from database for agent type:', agentType);
+      const dbPrompt = await getAgentPromptFromDatabase(supabaseClient, agentType);
       config = {
         model: { text: { provider: 'openai', model: 'gpt-4o-mini' } },
         generation: { temperature: 0.7, max_response_tokens: 4000 },
-        prompt: getDefaultPrompt(agentType)
+        prompt: dbPrompt
       };
     }
 
@@ -192,16 +192,47 @@ serve(async (req) => {
   }
 });
 
-function getDefaultPrompt(agentType: string): string {
-  switch (agentType) {
-    case 'gimmebot':
-      return 'You are gimmebot, a helpful marketing assistant at gimmefy.ai. You help users with marketing questions and guide them through gimmefy features. Always be friendly, helpful, and remember to use "gimmefy" with a lowercase g.';
-    case 'creative_concept':
-      return 'You are a creative AI assistant specialized in brainstorming and developing creative concepts. Help users generate innovative ideas and creative solutions.';
-    case 'neutral_chat':
-      return 'You are Jack, a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions.';
-    default:
-      return 'You are a helpful AI assistant.';
+async function getAgentPromptFromDatabase(supabaseClient: any, agentType: string): Promise<string> {
+  try {
+    console.log('Fetching agent prompt from database for:', agentType);
+    
+    // First try to get the active configuration for this agent
+    const { data: configData, error: configError } = await supabaseClient
+      .from('agent_config_versions')
+      .select('settings')
+      .eq('agent_id', agentType)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (configError) {
+      console.error('Error fetching agent config:', configError);
+    } else if (configData?.settings?.prompt) {
+      console.log('Found agent prompt in database, length:', configData.settings.prompt.length);
+      return configData.settings.prompt;
+    }
+
+    // Fallback: check if agent exists in agents table
+    const { data: agentData, error: agentError } = await supabaseClient
+      .from('agents')
+      .select('*')
+      .eq('agent_id', agentType)
+      .maybeSingle();
+
+    if (agentError) {
+      console.error('Error fetching agent:', agentError);
+    } else if (agentData) {
+      console.log('Found agent in database:', agentData.label);
+      // Return a generic prompt based on agent type
+      return `You are ${agentData.label}, a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions.`;
+    }
+
+    // Final fallback
+    console.log('No agent configuration found in database, using minimal fallback');
+    return 'You are a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions.';
+    
+  } catch (error) {
+    console.error('Error in getAgentPromptFromDatabase:', error);
+    return 'You are a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions.';
   }
 }
 

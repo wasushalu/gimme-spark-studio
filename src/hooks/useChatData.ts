@@ -39,17 +39,21 @@ export function useChatData() {
       return agentConfig.settings.welcome_message;
     }
     
-    // Fallback welcome messages based on agent type
-    switch (activeAgent) {
-      case 'gimmebot':
-        return 'Hello! I\'m gimmebot, your AI marketing assistant. How can I help you create amazing marketing content today?';
-      case 'creative_concept':
-        return 'Hi there! I\'m Studio, your creative ideas generator. What creative project can I help you brainstorm today?';
-      case 'neutral_chat':
-        return 'Hello! I\'m here for open conversation. What would you like to chat about?';
-      default:
-        return 'Hello! How can I help you today?';
+    // Check for prompt in agent config as fallback for welcome message
+    if (agentConfig?.settings?.prompt) {
+      // Create a friendly welcome message based on the system prompt
+      const prompt = agentConfig.settings.prompt.toLowerCase();
+      if (prompt.includes('marketing')) {
+        return 'Hello! I\'m your AI marketing assistant. How can I help you create amazing marketing content today?';
+      } else if (prompt.includes('creative')) {
+        return 'Hi there! I\'m your creative assistant. What creative project can I help you brainstorm today?';
+      } else {
+        return 'Hello! I\'m here to help. What can I assist you with today?';
+      }
     }
+    
+    // Final fallback - generic welcome message
+    return 'Hello! How can I help you today?';
   }, [configLoading, needsAuth, user, agentConfig, activeAgent]);
 
   const currentAgent = useMemo(() => ({
