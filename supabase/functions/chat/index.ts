@@ -1,114 +1,187 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { conversationId, message, agentType } = await req.json()
+    const { conversationId, message, agentType, agentConfig } = await req.json();
+    
+    console.log('Chat function called with:', { conversationId, agentType, hasAgentConfig: !!agentConfig });
 
-    // Initialize Supabase client
-    const supabase = createClient(
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    );
 
-    // Get agent configuration
-    const { data: agentConfig, error: configError } = await supabase
-      .from('agent_configurations')
-      .select('*')
-      .eq('agent_type', agentType)
-      .eq('is_active', true)
-      .single()
-
-    if (configError) {
-      throw new Error(`Failed to get agent config: ${configError.message}`)
-    }
-
-    // Get conversation history
-    const { data: messages, error: messagesError } = await supabase
+    // Get conversation messages for context
+    const { data: messages, error: messagesError } = await supabaseClient
       .from('chat_messages')
       .select('*')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: true });
 
     if (messagesError) {
-      throw new Error(`Failed to get messages: ${messagesError.message}`)
+      throw messagesError;
     }
 
-    // Build OpenAI messages array
-    const openaiMessages = [
-      { role: 'system', content: agentConfig.system_prompt },
-      ...messages.map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }))
-    ]
+    // Use agent configuration if available, otherwise fallback to defaults
+    const config = agentConfig || {
+      model: { text: { provider: 'openai', model: 'gpt-4o-mini' } },
+      generation: { temperature: 0.7, max_response_tokens: 4000 },
+      prompt: 'You are a helpful assistant.'
+    };
 
-    // Call OpenAI API
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: agentConfig.model,
-        messages: openaiMessages,
-        max_tokens: agentConfig.max_tokens,
-        temperature: agentConfig.temperature,
-      }),
-    })
+    // Build conversation history
+    const conversationHistory = messages.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
 
-    if (!openaiResponse.ok) {
-      throw new Error(`OpenAI API error: ${openaiResponse.statusText}`)
+    // Determine which AI service to use based on the configured model
+    const textModel = config.model?.text;
+    let aiResponse;
+
+    if (textModel?.provider === 'openai') {
+      aiResponse = await callOpenAI(textModel.model, conversationHistory, config);
+    } else if (textModel?.provider === 'anthropic') {
+      aiResponse = await callAnthropic(textModel.model, conversationHistory, config);
+    } else if (textModel?.provider === 'perplexity') {
+      aiResponse = await callPerplexity(textModel.model, conversationHistory, config);
+    } else {
+      // Default to OpenAI if provider not recognized
+      console.log('Unknown provider, defaulting to OpenAI');
+      aiResponse = await callOpenAI('gpt-4o-mini', conversationHistory, config);
     }
-
-    const openaiData = await openaiResponse.json()
-    const aiResponse = openaiData.choices[0].message.content
 
     // Save AI response to database
-    const { error: saveError } = await supabase
+    const { error: saveError } = await supabaseClient
       .from('chat_messages')
       .insert({
         conversation_id: conversationId,
         role: 'assistant',
         content: aiResponse,
-      })
+        metadata: {
+          model: textModel?.model || 'gpt-4o-mini',
+          provider: textModel?.provider || 'openai',
+          temperature: config.generation?.temperature || 0.7
+        }
+      });
 
     if (saveError) {
-      throw new Error(`Failed to save AI response: ${saveError.message}`)
+      throw saveError;
     }
 
-    return new Response(
-      JSON.stringify({ response: aiResponse }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
-      }
-    )
+    return new Response(JSON.stringify({ response: aiResponse }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
-    console.error('Chat function error:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
-        status: 500,
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
-      }
-    )
+    console.error('Error in chat function:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
-})
+});
+
+async function callOpenAI(model: string, messages: any[], config: any) {
+  const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openAIApiKey) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  const systemPrompt = config.prompt || 'You are a helpful assistant.';
+  const temperature = config.generation?.temperature || 0.7;
+  const maxTokens = config.generation?.max_response_tokens || 4000;
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openAIApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages
+      ],
+      temperature: temperature,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
+async function callAnthropic(model: string, messages: any[], config: any) {
+  const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  if (!anthropicApiKey) {
+    throw new Error('Anthropic API key not configured');
+  }
+
+  const systemPrompt = config.prompt || 'You are a helpful assistant.';
+  const temperature = config.generation?.temperature || 0.7;
+  const maxTokens = config.generation?.max_response_tokens || 4000;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': anthropicApiKey,
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: model,
+      system: systemPrompt,
+      messages: messages,
+      temperature: temperature,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  const data = await response.json();
+  return data.content[0].text;
+}
+
+async function callPerplexity(model: string, messages: any[], config: any) {
+  const perplexityApiKey = Deno.env.get('PERPLEXITY_API_KEY');
+  if (!perplexityApiKey) {
+    throw new Error('Perplexity API key not configured');
+  }
+
+  const systemPrompt = config.prompt || 'You are a helpful assistant.';
+  const temperature = config.generation?.temperature || 0.7;
+  const maxTokens = config.generation?.max_response_tokens || 4000;
+
+  const response = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${perplexityApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages
+      ],
+      temperature: temperature,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}

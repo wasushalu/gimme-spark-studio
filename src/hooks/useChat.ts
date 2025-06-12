@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ChatConversation, ChatMessage, AgentConfiguration } from '@/types/database';
+import { ChatConversation, ChatMessage, AgentConfigVersion } from '@/types/database';
 import { useAuth } from './useAuth';
 
 export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat') {
@@ -10,19 +10,25 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
   const queryClient = useQueryClient();
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
-  // Fetch agent configuration
+  // Fetch agent configuration from the new agent_config_versions table
   const { data: agentConfig } = useQuery({
     queryKey: ['agent-config', agentType],
     queryFn: async () => {
+      console.log('useChat: Fetching config for agent type:', agentType);
       const { data, error } = await supabase
-        .from('agent_configurations')
+        .from('agent_config_versions')
         .select('*')
-        .eq('agent_type', agentType)
+        .eq('agent_id', agentType)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
-      return data as AgentConfiguration;
+      if (error) {
+        console.error('useChat: Error fetching agent config:', error);
+        return null;
+      }
+      
+      console.log('useChat: Agent config result:', data);
+      return data as AgentConfigVersion;
     },
   });
 
@@ -93,12 +99,13 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
 
       if (userError) throw userError;
 
-      // Call edge function to get AI response
+      // Call edge function to get AI response, passing the agent configuration
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke('chat', {
         body: {
           conversationId: activeConversationId,
           message: content,
           agentType,
+          agentConfig: agentConfig?.settings, // Pass the dynamic configuration
         },
       });
 
