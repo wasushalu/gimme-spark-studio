@@ -13,7 +13,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
 
   // Check if this agent requires authentication
   const needsAuth = agentType !== 'gimmebot';
-  const canUseAgent = !needsAuth || user;
+  const canUseAgent = !needsAuth || !!user;
 
   // Fetch agent configuration from the new agent_config_versions table
   const { data: agentConfig, isLoading: configLoading } = useQuery({

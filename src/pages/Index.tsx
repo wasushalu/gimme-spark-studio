@@ -91,7 +91,6 @@ const Index = () => {
                 isLoading={isLoading}
                 onSendMessage={handleSendMessage}
                 messages={messages}
-                disabled={!canUseAgent}
               />
             )}
           </div>
