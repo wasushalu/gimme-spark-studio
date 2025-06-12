@@ -20,6 +20,7 @@ serve(async (req) => {
       conversationId, 
       agentType, 
       hasAgentConfig: !!agentConfig,
+      agentConfigKeys: agentConfig ? Object.keys(agentConfig) : [],
       messageLength: message?.length 
     });
 
@@ -50,19 +51,30 @@ serve(async (req) => {
 
     console.log(`Found ${messages.length} messages in conversation`);
 
-    // Use agent configuration if available, otherwise fallback to very basic defaults
+    // Use agent configuration if available, otherwise fallback to basic defaults
     let config;
-    if (agentConfig && agentConfig.prompt) {
-      console.log('Using provided agent config with prompt:', agentConfig.prompt.substring(0, 100) + '...');
-      config = agentConfig;
+    if (agentConfig && typeof agentConfig === 'object') {
+      console.log('Using provided agent config');
+      config = {
+        model: agentConfig.model || { text: { provider: 'openai', model: 'gpt-4o-mini' } },
+        generation: agentConfig.generation || { temperature: 0.7, max_response_tokens: 4000 },
+        prompt: agentConfig.prompt || getDefaultPrompt(agentType)
+      };
     } else {
-      console.log('No agent config or prompt provided, using fallback');
+      console.log('No valid agent config provided, using fallback for agent type:', agentType);
       config = {
         model: { text: { provider: 'openai', model: 'gpt-4o-mini' } },
         generation: { temperature: 0.7, max_response_tokens: 4000 },
-        prompt: 'You are a helpful assistant.'
+        prompt: getDefaultPrompt(agentType)
       };
     }
+
+    console.log('Final config:', {
+      modelProvider: config.model?.text?.provider,
+      modelName: config.model?.text?.model,
+      promptLength: config.prompt?.length,
+      temperature: config.generation?.temperature
+    });
 
     // Build conversation history
     const conversationHistory = messages.map(msg => ({
@@ -126,6 +138,19 @@ serve(async (req) => {
     });
   }
 });
+
+function getDefaultPrompt(agentType: string): string {
+  switch (agentType) {
+    case 'gimmebot':
+      return 'You are gimmebot, a helpful marketing assistant at gimmefy.ai. You help users with marketing questions and guide them through gimmefy features. Always be friendly, helpful, and remember to use "gimmefy" with a lowercase g.';
+    case 'creative_concept':
+      return 'You are a creative AI assistant specialized in brainstorming and developing creative concepts. Help users generate innovative ideas and creative solutions.';
+    case 'neutral_chat':
+      return 'You are a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions.';
+    default:
+      return 'You are a helpful AI assistant.';
+  }
+}
 
 async function callOpenAI(model: string, messages: any[], config: any) {
   const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
