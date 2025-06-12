@@ -62,22 +62,42 @@ export function useChatData() {
   }), [baseAgentInfo, welcomeMessage]);
 
   const handleAgentSelect = useCallback((agentId: string) => {
+    console.log('=== AGENT SELECTION ===');
+    console.log('Switching to agent:', agentId);
     setActiveAgent(agentId as 'gimmebot' | 'creative_concept' | 'neutral_chat');
   }, []);
 
   const handleSendMessage = useCallback((message: string) => {
+    console.log('=== HANDLE SEND MESSAGE START ===');
+    console.log('Message to send:', message);
+    console.log('Current loading state:', isLoading);
+    console.log('Messages loading state:', messagesLoading);
+    
     sendMessage({ content: message });
-  }, [sendMessage]);
+  }, [sendMessage, isLoading, messagesLoading]);
 
   // Transform ChatMessage[] to Message[] format expected by ChatInterface
-  const transformedMessages = useMemo(() => 
-    messages.map(msg => ({
+  const transformedMessages = useMemo(() => {
+    console.log('=== TRANSFORMING MESSAGES ===');
+    console.log('Raw messages from database:', messages);
+    
+    const transformed = messages.map(msg => ({
       id: msg.id,
       role: msg.role as 'user' | 'assistant',
       content: msg.content,
       timestamp: new Date(msg.created_at),
-    })), [messages]
-  );
+    }));
+    
+    console.log('Transformed messages for UI:', transformed);
+    return transformed;
+  }, [messages]);
+
+  console.log('=== CHAT DATA STATE ===');
+  console.log('Active agent:', activeAgent);
+  console.log('Messages count:', transformedMessages.length);
+  console.log('Is loading:', isLoading || messagesLoading || configLoading);
+  console.log('Can use agent:', canUseAgent);
+  console.log('Needs auth:', needsAuth);
 
   return {
     activeAgent,
