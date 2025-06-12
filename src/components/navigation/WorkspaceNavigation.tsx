@@ -61,7 +61,7 @@ export function WorkspaceNavigation({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="px-4 py-2 border-b-2 border-primary text-foreground font-medium flex items-center gap-2">
-                Workspace: {selectedWorkspace?.name || 'Select'}
+                Workspace{selectedWorkspace ? `: ${selectedWorkspace.name}` : ''}
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -91,7 +91,7 @@ export function WorkspaceNavigation({
                 className="px-4 py-2 text-muted-foreground font-medium flex items-center gap-2"
                 disabled={!selectedWorkspace}
               >
-                Projects: {selectedProject?.name || 'Select'}
+                Projects{selectedProject ? `: ${selectedProject.name}` : ''}
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -125,7 +125,7 @@ export function WorkspaceNavigation({
                 className="px-4 py-2 text-muted-foreground font-medium flex items-center gap-2"
                 disabled={!selectedProject}
               >
-                Brand Vault: {selectedBrandVault?.name || 'Select'}
+                Brand Vault{selectedBrandVault ? `: ${selectedBrandVault.name}` : ''}
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
