@@ -1,4 +1,5 @@
 
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Bot, Palette, MessageCircle } from "lucide-react";
 
@@ -32,7 +33,7 @@ const agents: Agent[] = [
   },
   {
     id: 'neutral_chat',
-    name: 'neutral chat',
+    name: 'Jack',
     description: 'Open Conversation',
     icon: MessageCircle,
     primary: false,
@@ -68,3 +69,4 @@ export function AgentSelector({ activeAgent, onAgentSelect }: AgentSelectorProps
 
 export { agents };
 export type { Agent };
+
