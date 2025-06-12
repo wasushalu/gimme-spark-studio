@@ -1,11 +1,13 @@
+
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Copy, Eye, Bot } from 'lucide-react';
+import { Plus, Edit, Trash2, Copy, Eye, Bot, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AgentConfigForm from '@/components/admin/AgentConfigForm';
 
 interface Agent {
   id: string;
@@ -19,11 +21,11 @@ interface Agent {
 export default function AgentsPage() {
   const { toast } = useToast();
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [showConfigForm, setShowConfigForm] = useState(false);
 
   const { data: agents, isLoading, refetch } = useQuery({
     queryKey: ['admin-agents'],
     queryFn: async () => {
-      // Use service role key to bypass RLS for demo purposes
       const { data, error } = await supabase
         .from('agents')
         .select('*')
@@ -31,7 +33,6 @@ export default function AgentsPage() {
       
       if (error) {
         console.error('Error fetching agents:', error);
-        // Return empty array if there's an error to prevent crashes
         return [];
       }
       return data as Agent[];
@@ -65,6 +66,11 @@ export default function AgentsPage() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleConfigureAgent = (agent: Agent) => {
+    setSelectedAgent(agent);
+    setShowConfigForm(true);
   };
 
   const getTypeColor = (type: string) => {
@@ -135,6 +141,14 @@ export default function AgentsPage() {
                   </p>
                 </div>
                 <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleConfigureAgent(agent)}
+                  >
+                    <Settings className="w-4 h-4 mr-1" />
+                    Configure
+                  </Button>
                   <Button variant="outline" size="sm">
                     <Eye className="w-4 h-4 mr-1" />
                     View
@@ -173,6 +187,16 @@ export default function AgentsPage() {
             Create Agent
           </Button>
         </div>
+      )}
+
+      {showConfigForm && selectedAgent && (
+        <AgentConfigForm
+          agent={selectedAgent}
+          onClose={() => {
+            setShowConfigForm(false);
+            setSelectedAgent(null);
+          }}
+        />
       )}
     </div>
   );
