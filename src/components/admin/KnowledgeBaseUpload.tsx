@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, FileText, AlertCircle } from 'lucide-react';
+import { Upload, FileText, AlertCircle, Type } from 'lucide-react';
 
 interface KnowledgeBaseUploadProps {
   agentId: string;
@@ -17,6 +19,8 @@ interface KnowledgeBaseUploadProps {
 export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [textContent, setTextContent] = useState('');
+  const [textTitle, setTextTitle] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -130,45 +134,191 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
     }
   };
 
+  const handleTextUpload = async () => {
+    if (!textContent.trim()) {
+      toast({
+        title: 'No content',
+        description: 'Please enter some text content.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!textTitle.trim()) {
+      toast({
+        title: 'Title required',
+        description: 'Please enter a title for your text content.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploading(true);
+    setProgress(0);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Create a text blob and upload it
+      const textBlob = new Blob([textContent], { type: 'text/plain' });
+      const fileName = `${textTitle}.txt`;
+      const filePath = `${user.id}/${agentId}/${Date.now()}_${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('knowledge-base')
+        .upload(filePath, textBlob);
+
+      if (uploadError) throw uploadError;
+
+      setProgress(30);
+
+      // Create document record
+      const { data: docData, error: docError } = await supabase
+        .from('knowledge_base_documents')
+        .insert({
+          agent_id: agentId,
+          filename: fileName,
+          file_path: uploadData.path,
+          file_size: textBlob.size,
+          mime_type: 'text/plain',
+          content_type: 'text',
+          uploaded_by: user.id,
+        })
+        .select('id')
+        .single();
+
+      if (docError) throw docError;
+
+      setProgress(60);
+
+      // Process document using edge function
+      const { error: processError } = await supabase.functions.invoke('process-document', {
+        body: {
+          documentId: docData.id,
+          filePath: uploadData.path,
+          agentId: agentId,
+        },
+      });
+
+      if (processError) throw processError;
+
+      setProgress(100);
+
+      toast({
+        title: 'Text content uploaded successfully',
+        description: 'Your text is being processed and will be available shortly.',
+      });
+
+      // Refresh the documents list
+      queryClient.invalidateQueries({ queryKey: ['knowledge-base-documents', agentId] });
+
+      // Reset form
+      setTextContent('');
+      setTextTitle('');
+
+    } catch (error) {
+      console.error('Text upload error:', error);
+      toast({
+        title: 'Upload failed',
+        description: 'Failed to upload text content. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      setProgress(0);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Upload className="w-5 h-5" />
-          Upload Documents
+          Upload Knowledge Base Content
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <Label htmlFor="document-upload">Select File</Label>
-          <Input
-            id="document-upload"
-            type="file"
-            onChange={handleFileUpload}
-            disabled={uploading}
-            accept=".pdf,.txt,.md,.docx"
-            className="cursor-pointer"
-          />
-          <p className="text-sm text-muted-foreground mt-1">
-            Supported formats: PDF, TXT, MD, DOCX (max 50MB)
-          </p>
-        </div>
+      <CardContent>
+        <Tabs defaultValue="file" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="file" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Upload File
+            </TabsTrigger>
+            <TabsTrigger value="text" className="flex items-center gap-2">
+              <Type className="w-4 h-4" />
+              Paste Text
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="file" className="space-y-4">
+            <div>
+              <Label htmlFor="document-upload">Select File</Label>
+              <Input
+                id="document-upload"
+                type="file"
+                onChange={handleFileUpload}
+                disabled={uploading}
+                accept=".pdf,.txt,.md,.docx"
+                className="cursor-pointer"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Supported formats: PDF, TXT, MD, DOCX (max 50MB)
+              </p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="text" className="space-y-4">
+            <div>
+              <Label htmlFor="text-title">Title</Label>
+              <Input
+                id="text-title"
+                type="text"
+                placeholder="Enter a title for your text content"
+                value={textTitle}
+                onChange={(e) => setTextTitle(e.target.value)}
+                disabled={uploading}
+              />
+            </div>
+            <div>
+              <Label htmlFor="text-content">Text Content</Label>
+              <Textarea
+                id="text-content"
+                placeholder="Paste your text content here... You can add large volumes of text, documentation, or any textual information you want to include in the knowledge base."
+                value={textContent}
+                onChange={(e) => setTextContent(e.target.value)}
+                disabled={uploading}
+                className="min-h-[200px] resize-y"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Character count: {textContent.length}
+              </p>
+            </div>
+            <Button 
+              onClick={handleTextUpload} 
+              disabled={uploading || !textContent.trim() || !textTitle.trim()}
+              className="w-full"
+            >
+              {uploading ? 'Processing...' : 'Upload Text Content'}
+            </Button>
+          </TabsContent>
+        </Tabs>
 
         {uploading && (
-          <div className="space-y-2">
+          <div className="space-y-2 mt-4">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              <span className="text-sm">Processing document...</span>
+              <span className="text-sm">Processing content...</span>
             </div>
             <Progress value={progress} className="w-full" />
           </div>
         )}
 
-        <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg">
+        <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg mt-4">
           <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5" />
           <div className="text-sm text-blue-800">
             <p className="font-medium">Processing Information</p>
-            <p>Documents are automatically chunked and embedded for optimal retrieval. This process may take a few minutes for larger files.</p>
+            <p>Content is automatically chunked and embedded for optimal retrieval. This process may take a few minutes for larger content.</p>
           </div>
         </div>
       </CardContent>
