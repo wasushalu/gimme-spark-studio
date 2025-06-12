@@ -143,8 +143,8 @@ export function GimmebotPage() {
       <div className="flex-1">
         <Card className="h-full notion-shadow-lg">
           <ChatInterface
-            agentName={agentConfig?.name || "gimmebot"}
-            agentDescription={agentConfig?.description || "Free marketing assistant - no login required"}
+            agentName="gimmebot"
+            agentDescription="Free marketing assistant - no login required"
             agentIcon={MessageCircle}
             placeholder="Ask me anything about marketing..."
             welcomeMessage="Hi there! 👋 I'm gimmebot, your friendly marketing assistant. I'm here to help with any marketing questions or challenges you have. What would you like to explore today?"
