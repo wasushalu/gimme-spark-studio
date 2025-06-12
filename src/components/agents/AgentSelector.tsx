@@ -26,7 +26,7 @@ const agents: Agent[] = [
     welcomeMessage: 'Hello! I\'m gimmebot, your AI marketing assistant. How can I help you create amazing marketing content today?'
   },
   {
-    id: 'studio',
+    id: 'creative_concept',
     name: 'studio',
     description: 'Creative Ideas Generator',
     icon: Palette,

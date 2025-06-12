@@ -30,7 +30,7 @@ const Index = () => {
 
   const handleGoClick = () => {
     if (selectedBrandVault) {
-      handleAgentSelect('studio');
+      handleAgentSelect('creative_concept');
     }
   };
 
