@@ -53,7 +53,11 @@ export function useWorkspaceData() {
       name: `Workspace ${workspaces.length + 1}`,
       projects: []
     };
-    setWorkspaces([...workspaces, newWorkspace]);
+    const updatedWorkspaces = [...workspaces, newWorkspace];
+    setWorkspaces(updatedWorkspaces);
+    setSelectedWorkspace(newWorkspace);
+    setSelectedProject(null);
+    setSelectedBrandVault(null);
   };
 
   const addProject = () => {
@@ -72,7 +76,10 @@ export function useWorkspaceData() {
     );
     
     setWorkspaces(updatedWorkspaces);
-    setSelectedWorkspace(updatedWorkspaces.find(ws => ws.id === selectedWorkspace.id)!);
+    const updatedWorkspace = updatedWorkspaces.find(ws => ws.id === selectedWorkspace.id)!;
+    setSelectedWorkspace(updatedWorkspace);
+    setSelectedProject(newProject);
+    setSelectedBrandVault(null);
   };
 
   const addBrandVault = () => {
@@ -101,6 +108,7 @@ export function useWorkspaceData() {
     const updatedProject = updatedWorkspace.projects.find(proj => proj.id === selectedProject.id)!;
     setSelectedWorkspace(updatedWorkspace);
     setSelectedProject(updatedProject);
+    setSelectedBrandVault(newBrandVault);
   };
 
   const handleWorkspaceSelect = (workspace: Workspace) => {
