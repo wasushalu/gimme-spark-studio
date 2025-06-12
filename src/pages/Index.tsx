@@ -61,9 +61,9 @@ const Index = () => {
     }
   ]);
 
-  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace>(workspaces[0]);
-  const [selectedProject, setSelectedProject] = useState<Project>(workspaces[0].projects[0]);
-  const [selectedBrandVault, setSelectedBrandVault] = useState<BrandVault>(workspaces[0].projects[0].brandVaults[0]);
+  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(workspaces[0]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(workspaces[0].projects[0]);
+  const [selectedBrandVault, setSelectedBrandVault] = useState<BrandVault | null>(workspaces[0].projects[0].brandVaults[0]);
 
   const agents = [
     {
@@ -135,6 +135,8 @@ const Index = () => {
   };
 
   const addProject = () => {
+    if (!selectedWorkspace) return;
+    
     const newProject: Project = {
       id: Date.now().toString(),
       name: `Project ${selectedWorkspace.projects.length + 1}`,
@@ -152,6 +154,8 @@ const Index = () => {
   };
 
   const addBrandVault = () => {
+    if (!selectedWorkspace || !selectedProject) return;
+    
     const newBrandVault: BrandVault = {
       id: Date.now().toString(),
       name: `Brand Vault ${selectedProject.brandVaults.length + 1}`
@@ -177,17 +181,39 @@ const Index = () => {
     setSelectedProject(updatedProject);
   };
 
+  const handleWorkspaceSelect = (workspace: Workspace) => {
+    setSelectedWorkspace(workspace);
+    setSelectedProject(null);
+    setSelectedBrandVault(null);
+  };
+
+  const handleProjectSelect = (project: Project) => {
+    setSelectedProject(project);
+    setSelectedBrandVault(null);
+  };
+
+  const handleBrandVaultSelect = (brandVault: BrandVault) => {
+    setSelectedBrandVault(brandVault);
+  };
+
+  const handleGoClick = () => {
+    if (selectedBrandVault) {
+      setActiveAgent('studio');
+      setMessages([]); // Clear messages when switching to studio
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header Navigation */}
       <div className="border-b border-border/20 px-6 py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex space-x-8">
+          <div className="flex items-center space-x-8">
             {/* Workspace Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="px-4 py-2 border-b-2 border-primary text-foreground font-medium flex items-center gap-2">
-                  {selectedWorkspace.name}
+                  Workspace: {selectedWorkspace?.name || 'Select Workspace'}
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -195,15 +221,7 @@ const Index = () => {
                 {workspaces.map((workspace) => (
                   <DropdownMenuItem
                     key={workspace.id}
-                    onClick={() => {
-                      setSelectedWorkspace(workspace);
-                      if (workspace.projects.length > 0) {
-                        setSelectedProject(workspace.projects[0]);
-                        if (workspace.projects[0].brandVaults.length > 0) {
-                          setSelectedBrandVault(workspace.projects[0].brandVaults[0]);
-                        }
-                      }
-                    }}
+                    onClick={() => handleWorkspaceSelect(workspace)}
                     className="cursor-pointer"
                   >
                     {workspace.name}
@@ -220,28 +238,27 @@ const Index = () => {
             {/* Projects Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="px-4 py-2 text-muted-foreground font-medium flex items-center gap-2">
-                  {selectedProject?.name || 'Projects'}
+                <Button 
+                  variant="ghost" 
+                  className="px-4 py-2 text-muted-foreground font-medium flex items-center gap-2"
+                  disabled={!selectedWorkspace}
+                >
+                  Projects: {selectedProject?.name || 'Select Project'}
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 bg-background border shadow-lg">
-                {selectedWorkspace.projects.map((project) => (
+                {selectedWorkspace?.projects.map((project) => (
                   <DropdownMenuItem
                     key={project.id}
-                    onClick={() => {
-                      setSelectedProject(project);
-                      if (project.brandVaults.length > 0) {
-                        setSelectedBrandVault(project.brandVaults[0]);
-                      }
-                    }}
+                    onClick={() => handleProjectSelect(project)}
                     className="cursor-pointer"
                   >
                     {project.name}
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={addProject} className="cursor-pointer flex items-center gap-2">
+                <DropdownMenuItem onClick={addProject} className="cursor-pointer flex items-center gap-2" disabled={!selectedWorkspace}>
                   <Plus className="h-4 w-4" />
                   Add Project
                 </DropdownMenuItem>
@@ -251,8 +268,12 @@ const Index = () => {
             {/* Brand Vault Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="px-4 py-2 text-muted-foreground font-medium flex items-center gap-2">
-                  {selectedBrandVault?.name || 'Brand Vault'}
+                <Button 
+                  variant="ghost" 
+                  className="px-4 py-2 text-muted-foreground font-medium flex items-center gap-2"
+                  disabled={!selectedProject}
+                >
+                  Brand Vault: {selectedBrandVault?.name || 'Select Brand Vault'}
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -260,20 +281,30 @@ const Index = () => {
                 {selectedProject?.brandVaults.map((brandVault) => (
                   <DropdownMenuItem
                     key={brandVault.id}
-                    onClick={() => setSelectedBrandVault(brandVault)}
+                    onClick={() => handleBrandVaultSelect(brandVault)}
                     className="cursor-pointer"
                   >
                     {brandVault.name}
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={addBrandVault} className="cursor-pointer flex items-center gap-2">
+                <DropdownMenuItem onClick={addBrandVault} className="cursor-pointer flex items-center gap-2" disabled={!selectedProject}>
                   <Plus className="h-4 w-4" />
                   Add Brand Vault
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* Go Button */}
+            <Button 
+              onClick={handleGoClick}
+              disabled={!selectedBrandVault}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              Go
+            </Button>
           </div>
+          
           <div className="flex gap-3">
             <Button variant="outline" size="sm">
               Login
