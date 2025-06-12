@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useChat } from './useChat';
 import { useAuth } from './useAuth';
 import { agents } from '@/components/agents/AgentSelector';
@@ -20,10 +20,13 @@ export function useChatData() {
   } = useChat(activeAgent, false);
 
   // Get the base agent info (name, description, icon) from the static config
-  const baseAgentInfo = agents.find(agent => agent.id === activeAgent) || agents[0];
+  const baseAgentInfo = useMemo(() => 
+    agents.find(agent => agent.id === activeAgent) || agents[0], 
+    [activeAgent]
+  );
 
   // Get the dynamic welcome message from the agent config, or fallback to a default
-  const getWelcomeMessage = () => {
+  const welcomeMessage = useMemo(() => {
     if (configLoading) return 'Loading...';
     
     // If agent needs auth and user is not logged in, show auth message
@@ -47,28 +50,30 @@ export function useChatData() {
       default:
         return 'Hello! How can I help you today?';
     }
-  };
+  }, [configLoading, needsAuth, user, agentConfig, activeAgent]);
 
-  const currentAgent = {
+  const currentAgent = useMemo(() => ({
     ...baseAgentInfo,
-    welcomeMessage: getWelcomeMessage(),
-  };
+    welcomeMessage,
+  }), [baseAgentInfo, welcomeMessage]);
 
-  const handleAgentSelect = (agentId: string) => {
+  const handleAgentSelect = useCallback((agentId: string) => {
     setActiveAgent(agentId as 'gimmebot' | 'creative_concept' | 'neutral_chat');
-  };
+  }, []);
 
-  const handleSendMessage = (message: string) => {
+  const handleSendMessage = useCallback((message: string) => {
     sendMessage({ content: message });
-  };
+  }, [sendMessage]);
 
   // Transform ChatMessage[] to Message[] format expected by ChatInterface
-  const transformedMessages = messages.map(msg => ({
-    id: msg.id,
-    role: msg.role as 'user' | 'assistant',
-    content: msg.content,
-    timestamp: new Date(msg.created_at),
-  }));
+  const transformedMessages = useMemo(() => 
+    messages.map(msg => ({
+      id: msg.id,
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content,
+      timestamp: new Date(msg.created_at),
+    })), [messages]
+  );
 
   return {
     activeAgent,

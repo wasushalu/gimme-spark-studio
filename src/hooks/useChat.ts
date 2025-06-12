@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatConversation, ChatMessage, AgentConfigVersion } from '@/types/database';
@@ -11,9 +11,12 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
   const queryClient = useQueryClient();
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
-  // Check if this agent requires authentication
-  const needsAuth = agentType !== 'gimmebot';
-  const canUseAgent = !needsAuth || !!user;
+  // Memoize derived values to prevent unnecessary re-renders
+  const authState = useMemo(() => {
+    const needsAuth = agentType !== 'gimmebot';
+    const canUseAgent = !needsAuth || !!user;
+    return { needsAuth, canUseAgent };
+  }, [agentType, user]);
 
   // Fetch agent configuration from the new agent_config_versions table
   const { data: agentConfig, isLoading: configLoading } = useQuery({
@@ -30,14 +33,16 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
 
       if (configError) {
         console.error('useChat: Error fetching agent config:', configError);
-        return null; // Return null instead of throwing to allow fallback
+        return null;
       }
       
       console.log('useChat: Agent config result:', configData);
       
       return configData as AgentConfigVersion;
     },
-    enabled: canUseAgent,
+    enabled: authState.canUseAgent,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
   // Fetch conversation messages - only if user is authenticated and has a conversation
@@ -58,7 +63,8 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
       }
       return data as ChatMessage[];
     },
-    enabled: !!currentConversationId && !!user && canUseAgent,
+    enabled: !!currentConversationId && !!user && authState.canUseAgent,
+    staleTime: 1000, // 1 second - messages should be fresh
   });
 
   // Create conversation mutation - only available for authenticated users
@@ -103,7 +109,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
       console.log('Sending message:', content);
       
       // Check if agent requires authentication
-      if (needsAuth && !user) {
+      if (authState.needsAuth && !user) {
         throw new Error('Please sign in to chat with this agent');
       }
 
@@ -182,7 +188,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     if (!content.trim()) return;
     
     // Check if agent requires authentication before proceeding
-    if (needsAuth && !user) {
+    if (authState.needsAuth && !user) {
       toast.error('Please sign in to chat with this agent');
       return;
     }
@@ -192,7 +198,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     } catch (error) {
       console.error('Error in sendMessage:', error);
     }
-  }, [sendMessageMutation, needsAuth, user]);
+  }, [sendMessageMutation, authState.needsAuth, user]);
 
   return {
     agentConfig,
@@ -204,7 +210,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     isLoading: sendMessageMutation.isPending,
     startNewConversation,
     createConversation: createConversationMutation.mutate,
-    canUseAgent, // New property to indicate if the agent can be used
-    needsAuth, // New property to indicate if auth is required
+    canUseAgent: authState.canUseAgent,
+    needsAuth: authState.needsAuth,
   };
 }
