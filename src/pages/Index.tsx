@@ -2,15 +2,68 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
-import { Bot, Palette, MessageCircle } from "lucide-react";
+import { Bot, Palette, MessageCircle, ChevronDown, Plus } from "lucide-react";
 import { ChatInterface } from "@/components/chat/ChatInterface";
+
+interface Workspace {
+  id: string;
+  name: string;
+  projects: Project[];
+}
+
+interface Project {
+  id: string;
+  name: string;
+  brandVaults: BrandVault[];
+}
+
+interface BrandVault {
+  id: string;
+  name: string;
+}
 
 const Index = () => {
   const navigate = useNavigate();
   const [activeAgent, setActiveAgent] = useState<string>('gimmebot');
   const [messages, setMessages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Sample data structure for the hierarchy
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([
+    {
+      id: '1',
+      name: 'Default Workspace',
+      projects: [
+        {
+          id: '1',
+          name: 'Marketing Campaign',
+          brandVaults: [
+            { id: '1', name: 'Brand Guidelines' },
+            { id: '2', name: 'Asset Library' }
+          ]
+        },
+        {
+          id: '2',
+          name: 'Product Launch',
+          brandVaults: [
+            { id: '3', name: 'Launch Assets' }
+          ]
+        }
+      ]
+    }
+  ]);
+
+  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace>(workspaces[0]);
+  const [selectedProject, setSelectedProject] = useState<Project>(workspaces[0].projects[0]);
+  const [selectedBrandVault, setSelectedBrandVault] = useState<BrandVault>(workspaces[0].projects[0].brandVaults[0]);
 
   const agents = [
     {
@@ -72,21 +125,154 @@ const Index = () => {
     }, 1500);
   };
 
+  const addWorkspace = () => {
+    const newWorkspace: Workspace = {
+      id: Date.now().toString(),
+      name: `Workspace ${workspaces.length + 1}`,
+      projects: []
+    };
+    setWorkspaces([...workspaces, newWorkspace]);
+  };
+
+  const addProject = () => {
+    const newProject: Project = {
+      id: Date.now().toString(),
+      name: `Project ${selectedWorkspace.projects.length + 1}`,
+      brandVaults: []
+    };
+    
+    const updatedWorkspaces = workspaces.map(ws => 
+      ws.id === selectedWorkspace.id 
+        ? { ...ws, projects: [...ws.projects, newProject] }
+        : ws
+    );
+    
+    setWorkspaces(updatedWorkspaces);
+    setSelectedWorkspace(updatedWorkspaces.find(ws => ws.id === selectedWorkspace.id)!);
+  };
+
+  const addBrandVault = () => {
+    const newBrandVault: BrandVault = {
+      id: Date.now().toString(),
+      name: `Brand Vault ${selectedProject.brandVaults.length + 1}`
+    };
+    
+    const updatedWorkspaces = workspaces.map(ws =>
+      ws.id === selectedWorkspace.id
+        ? {
+            ...ws,
+            projects: ws.projects.map(proj =>
+              proj.id === selectedProject.id
+                ? { ...proj, brandVaults: [...proj.brandVaults, newBrandVault] }
+                : proj
+            )
+          }
+        : ws
+    );
+    
+    setWorkspaces(updatedWorkspaces);
+    const updatedWorkspace = updatedWorkspaces.find(ws => ws.id === selectedWorkspace.id)!;
+    const updatedProject = updatedWorkspace.projects.find(proj => proj.id === selectedProject.id)!;
+    setSelectedWorkspace(updatedWorkspace);
+    setSelectedProject(updatedProject);
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header Navigation */}
       <div className="border-b border-border/20 px-6 py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex space-x-8">
-            <div className="px-4 py-2 border-b-2 border-primary text-foreground font-medium">
-              Workspace
-            </div>
-            <div className="px-4 py-2 text-muted-foreground font-medium">
-              Projects
-            </div>
-            <div className="px-4 py-2 text-muted-foreground font-medium">
-              Brand Vault
-            </div>
+            {/* Workspace Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="px-4 py-2 border-b-2 border-primary text-foreground font-medium flex items-center gap-2">
+                  {selectedWorkspace.name}
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-background border shadow-lg">
+                {workspaces.map((workspace) => (
+                  <DropdownMenuItem
+                    key={workspace.id}
+                    onClick={() => {
+                      setSelectedWorkspace(workspace);
+                      if (workspace.projects.length > 0) {
+                        setSelectedProject(workspace.projects[0]);
+                        if (workspace.projects[0].brandVaults.length > 0) {
+                          setSelectedBrandVault(workspace.projects[0].brandVaults[0]);
+                        }
+                      }
+                    }}
+                    className="cursor-pointer"
+                  >
+                    {workspace.name}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={addWorkspace} className="cursor-pointer flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Workspace
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Projects Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="px-4 py-2 text-muted-foreground font-medium flex items-center gap-2">
+                  {selectedProject?.name || 'Projects'}
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-background border shadow-lg">
+                {selectedWorkspace.projects.map((project) => (
+                  <DropdownMenuItem
+                    key={project.id}
+                    onClick={() => {
+                      setSelectedProject(project);
+                      if (project.brandVaults.length > 0) {
+                        setSelectedBrandVault(project.brandVaults[0]);
+                      }
+                    }}
+                    className="cursor-pointer"
+                  >
+                    {project.name}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={addProject} className="cursor-pointer flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Project
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Brand Vault Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="px-4 py-2 text-muted-foreground font-medium flex items-center gap-2">
+                  {selectedBrandVault?.name || 'Brand Vault'}
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-background border shadow-lg">
+                {selectedProject?.brandVaults.map((brandVault) => (
+                  <DropdownMenuItem
+                    key={brandVault.id}
+                    onClick={() => setSelectedBrandVault(brandVault)}
+                    className="cursor-pointer"
+                  >
+                    {brandVault.name}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={addBrandVault} className="cursor-pointer flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Brand Vault
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" size="sm">
