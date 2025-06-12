@@ -4,6 +4,7 @@ export interface Profile {
   first_name?: string;
   last_name?: string;
   email?: string;
+  is_admin?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -37,6 +38,75 @@ export interface AgentConfiguration {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface Agent {
+  id: string;
+  agent_id: string;
+  label: string;
+  type: 'root' | 'sub' | 'utility';
+  visibility: 'public' | 'workspace' | 'internal';
+  created_at: string;
+}
+
+export interface AgentConfigVersion {
+  id: string;
+  agent_id: string;
+  version: number;
+  is_active: boolean;
+  settings: {
+    model: {
+      text: { provider: string; model: string };
+      image: { provider: string; model: string };
+      audio: { provider: string | null; model: string | null };
+      video: { provider: string | null; model: string | null };
+    };
+    generation: {
+      max_context_tokens: number;
+      max_response_tokens: number;
+      temperature: number;
+      top_p: number;
+    };
+    prompt: string;
+    tools: string[];
+    knowledge_base: {
+      enabled: boolean;
+      vector_store_id: string | null;
+      chunk_size: number;
+      chunk_overlap: number;
+      retrieval_depth: number;
+      keyword_extraction: string;
+    };
+    agent_as_tool: {
+      expose: boolean;
+      function_name: string;
+      signature: Record<string, any>;
+    };
+    router: {
+      strategy: string;
+      default_child: string | null;
+    };
+  };
+  created_by?: string;
+  created_at: string;
+}
+
+export interface ModelCatalog {
+  id: string;
+  modality: 'text' | 'image' | 'audio' | 'video';
+  provider: string;
+  model_name: string;
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface ToolRegistry {
+  id: string;
+  name: string;
+  description?: string;
+  function_schema: Record<string, any>;
+  enabled: boolean;
+  created_at: string;
 }
 
 export interface ChatConversation {

@@ -9,6 +9,44 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      agent_config_versions: {
+        Row: {
+          agent_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          settings: Json
+          version: number
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          settings: Json
+          version: number
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          settings?: Json
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_config_versions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       agent_configurations: {
         Row: {
           agent_type: Database["public"]["Enums"]["agent_type"]
@@ -51,6 +89,33 @@ export type Database = {
           temperature?: number | null
           tools?: Json | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      agents: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          label: string
+          type: string
+          visibility: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          label: string
+          type: string
+          visibility: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          type?: string
+          visibility?: string
         }
         Relationships: []
       }
@@ -219,12 +284,40 @@ export type Database = {
           },
         ]
       }
+      model_catalog: {
+        Row: {
+          created_at: string
+          enabled: boolean | null
+          id: string
+          modality: string
+          model_name: string
+          provider: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean | null
+          id?: string
+          modality: string
+          model_name: string
+          provider: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean | null
+          id?: string
+          modality?: string
+          model_name?: string
+          provider?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
           email: string | null
           first_name: string | null
           id: string
+          is_admin: boolean | null
           last_name: string | null
           updated_at: string
         }
@@ -233,6 +326,7 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id: string
+          is_admin?: boolean | null
           last_name?: string | null
           updated_at?: string
         }
@@ -241,6 +335,7 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id?: string
+          is_admin?: boolean | null
           last_name?: string | null
           updated_at?: string
         }
@@ -283,6 +378,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tool_registry: {
+        Row: {
+          created_at: string
+          description: string | null
+          enabled: boolean | null
+          function_schema: Json | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean | null
+          function_schema?: Json | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean | null
+          function_schema?: Json | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
       }
       workspace_memberships: {
         Row: {
