@@ -10,7 +10,7 @@ const Index = () => {
   const agents = [
     {
       id: 'gimmebot',
-      name: 'Gimmebot',
+      name: 'gimmebot',
       description: 'AI Marketing Assistant',
       icon: Bot,
       primary: true,
@@ -40,7 +40,7 @@ const Index = () => {
       {/* Header */}
       <div className="border-b border-border/40 px-6 py-4">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-semibold gradient-text">Gimmefy</h1>
+          <h1 className="text-xl font-semibold gradient-text">gimmefy</h1>
           <Button 
             onClick={() => navigate('/admin')} 
             variant="ghost"
@@ -92,17 +92,17 @@ const Index = () => {
           })}
         </div>
 
-        {/* Quick Start with Gimmebot */}
+        {/* Quick Start with gimmebot */}
         <div className="text-center">
           <p className="text-sm text-muted-foreground mb-4">
-            Ready to get started? Jump right into Gimmebot
+            Ready to get started? Jump right into gimmebot
           </p>
           <Button 
             onClick={() => handleAgentSelect('gimmebot')}
             size="lg"
             className="px-8"
           >
-            Start with Gimmebot
+            Start with gimmebot
           </Button>
         </div>
       </div>

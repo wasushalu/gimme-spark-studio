@@ -22,9 +22,9 @@ interface Agent {
 const agents: Agent[] = [
   {
     id: 'gimmebot',
-    name: 'Gimmebot',
+    name: 'gimmebot',
     icon: Bot,
-    welcomeMessage: 'Hello! I\'m Gimmebot, your AI marketing assistant. How can I help you create amazing marketing content today?'
+    welcomeMessage: 'Hello! I\'m gimmebot, your AI marketing assistant. How can I help you create amazing marketing content today?'
   },
   {
     id: 'creative_concept',
