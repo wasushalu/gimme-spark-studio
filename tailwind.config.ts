@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,32 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				marketing: {
+					50: 'hsl(217, 91%, 97%)',
+					100: 'hsl(217, 91%, 93%)',
+					200: 'hsl(217, 91%, 86%)',
+					300: 'hsl(217, 91%, 77%)',
+					400: 'hsl(217, 91%, 65%)',
+					500: 'hsl(217, 91%, 60%)',
+					600: 'hsl(217, 91%, 48%)',
+					700: 'hsl(217, 91%, 40%)',
+					800: 'hsl(217, 91%, 32%)',
+					900: 'hsl(217, 91%, 26%)',
+					950: 'hsl(217, 91%, 16%)'
+				},
+				creative: {
+					50: 'hsl(280, 65%, 97%)',
+					100: 'hsl(280, 65%, 93%)',
+					200: 'hsl(280, 65%, 86%)',
+					300: 'hsl(280, 65%, 77%)',
+					400: 'hsl(280, 65%, 65%)',
+					500: 'hsl(280, 65%, 60%)',
+					600: 'hsl(280, 65%, 48%)',
+					700: 'hsl(280, 65%, 40%)',
+					800: 'hsl(280, 65%, 32%)',
+					900: 'hsl(280, 65%, 26%)',
+					950: 'hsl(280, 65%, 16%)'
 				}
 			},
 			borderRadius: {
@@ -84,11 +111,25 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse-slow': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.5' }
+				},
+				'bounce-gentle': {
+					'0%, 100%': { transform: 'translateY(-5%)' },
+					'50%': { transform: 'translateY(0)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-slow': 'pulse-slow 2s ease-in-out infinite',
+				'bounce-gentle': 'bounce-gentle 2s ease-in-out infinite'
+			},
+			fontFamily: {
+				'sans': ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+				'mono': ['Fira Code', 'ui-monospace', 'monospace']
 			}
 		}
 	},
