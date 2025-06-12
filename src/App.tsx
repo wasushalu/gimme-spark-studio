@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import ChatPage from "./pages/ChatPage";
 import AdminPage from "./pages/admin/AdminPage";
 import AdminLayout from "./components/admin/AdminLayout";
 import AgentsPage from "./pages/admin/AgentsPage";
@@ -25,6 +26,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/chat" element={<ChatPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route path="agents" element={<AgentsPage />} />
