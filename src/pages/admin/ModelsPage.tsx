@@ -30,9 +30,18 @@ export default function ModelsPage() {
       const { data, error } = await supabase
         .from('model_catalog')
         .select('*')
-        .order('provider', { ascending: true });
+        .order('provider', { ascending: true })
+        .order('model_name', { ascending: true });
       
-      console.log('ModelsPage: Models query result:', { data, error, count: data?.length });
+      console.log('ModelsPage: Models query result:', { 
+        data, 
+        error, 
+        count: data?.length,
+        textModels: data?.filter(m => m.modality === 'text').length || 0,
+        imageModels: data?.filter(m => m.modality === 'image').length || 0,
+        providers: [...new Set(data?.map(m => m.provider) || [])],
+        modalities: [...new Set(data?.map(m => m.modality) || [])]
+      });
       
       if (error) {
         console.error('ModelsPage: Error fetching models:', error);
@@ -40,7 +49,6 @@ export default function ModelsPage() {
       }
       
       console.log(`ModelsPage: Successfully fetched ${data?.length || 0} models`);
-      console.log('ModelsPage: Model details:', data);
       return data as Model[];
     }
   });
@@ -74,11 +82,13 @@ export default function ModelsPage() {
   const filteredModels = filterModels(models || [], searchTerm);
 
   console.log('ModelsPage: Render state:', {
-    models: models?.length || 0,
+    totalModels: models?.length || 0,
     filteredModels: filteredModels?.length || 0,
     searchTerm,
     isLoading,
-    error: error?.message
+    error: error?.message,
+    providers: models ? [...new Set(models.map(m => m.provider))] : [],
+    modalities: models ? [...new Set(models.map(m => m.modality))] : []
   });
 
   if (error) {
@@ -112,7 +122,7 @@ export default function ModelsPage() {
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
           <div className="grid gap-4">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="h-24 bg-gray-200 rounded"></div>
             ))}
           </div>
@@ -128,6 +138,11 @@ export default function ModelsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Model Catalog</h1>
           <p className="text-sm text-gray-600 mt-1">
             {filteredModels.length} of {models?.length || 0} models
+            {models && models.length > 0 && (
+              <span className="ml-2">
+                ({models.filter(m => m.modality === 'text').length} text, {models.filter(m => m.modality === 'image').length} image)
+              </span>
+            )}
           </p>
         </div>
         <div className="flex space-x-2">
@@ -144,30 +159,86 @@ export default function ModelsPage() {
 
       <ModelSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
 
+      {/* Stats cards for quick overview */}
+      {models && models.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-blue-600">{models.length}</div>
+              <div className="text-sm text-gray-600">Total Models</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-green-600">
+                {models.filter(m => m.enabled).length}
+              </div>
+              <div className="text-sm text-gray-600">Enabled</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-purple-600">
+                {[...new Set(models.map(m => m.provider))].length}
+              </div>
+              <div className="text-sm text-gray-600">Providers</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-orange-600">
+                {[...new Set(models.map(m => m.modality))].length}
+              </div>
+              <div className="text-sm text-gray-600">Modalities</div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="grid gap-4">
-        {filteredModels.map((model) => (
-          <ModelCard 
-            key={model.id} 
-            model={model} 
-            onToggleStatus={toggleModelStatus}
-          />
-        ))}
+        {filteredModels && filteredModels.length > 0 ? (
+          filteredModels.map((model) => (
+            <ModelCard 
+              key={model.id} 
+              model={model} 
+              onToggleStatus={toggleModelStatus}
+            />
+          ))
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-lg font-medium text-gray-900 mb-2">
+              {searchTerm ? 'No models match your search' : 'No models found'}
+            </div>
+            <p className="text-gray-500 mb-4">
+              {searchTerm 
+                ? 'Try adjusting your search terms.' 
+                : models && models.length === 0 
+                  ? 'No models have been added to the catalog yet.'
+                  : 'Get started by adding your first model.'
+              }
+            </p>
+            {!searchTerm && (
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Model
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
-      {filteredModels.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-lg font-medium text-gray-900 mb-2">
-            {searchTerm ? 'No models match your search' : 'No models found'}
+      {/* Debug information - only show in development or when there are issues */}
+      {process.env.NODE_ENV === 'development' && models && (
+        <div className="mt-8 p-4 bg-gray-50 rounded-lg">
+          <h4 className="text-sm font-medium text-gray-900 mb-2">Debug Information</h4>
+          <div className="text-xs text-gray-700 space-y-1">
+            <p>Total models fetched: {models.length}</p>
+            <p>Providers: {[...new Set(models.map(m => m.provider))].join(', ')}</p>
+            <p>Modalities: {[...new Set(models.map(m => m.modality))].join(', ')}</p>
+            <p>Enabled models: {models.filter(m => m.enabled).length}</p>
+            <p>Search term: "{searchTerm}"</p>
+            <p>Filtered results: {filteredModels.length}</p>
           </div>
-          <p className="text-gray-500 mb-4">
-            {searchTerm ? 'Try adjusting your search terms.' : 'Get started by adding your first model.'}
-          </p>
-          {!searchTerm && (
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Model
-            </Button>
-          )}
         </div>
       )}
     </div>
