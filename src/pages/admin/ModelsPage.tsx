@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Plus, Edit, Trash2, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Model {
@@ -22,21 +22,30 @@ export default function ModelsPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: models, isLoading, refetch } = useQuery({
+  const { data: models, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-models'],
     queryFn: async () => {
+      console.log('Fetching models from model_catalog...');
       const { data, error } = await supabase
         .from('model_catalog')
         .select('*')
         .order('provider', { ascending: true });
       
-      if (error) throw error;
+      console.log('Models query result:', { data, error });
+      
+      if (error) {
+        console.error('Error fetching models:', error);
+        throw error;
+      }
+      
+      console.log(`Successfully fetched ${data?.length || 0} models`);
       return data as Model[];
     }
   });
 
   const toggleModelStatus = async (modelId: string, currentStatus: boolean) => {
     try {
+      console.log(`Toggling model ${modelId} from ${currentStatus} to ${!currentStatus}`);
       const { error } = await supabase
         .from('model_catalog')
         .update({ enabled: !currentStatus })
@@ -70,10 +79,44 @@ export default function ModelsPage() {
     }
   };
 
+  const getProviderColor = (provider: string) => {
+    switch (provider.toLowerCase()) {
+      case 'openai': return 'bg-emerald-100 text-emerald-800';
+      case 'anthropic': return 'bg-orange-100 text-orange-800';
+      case 'google': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   const filteredModels = models?.filter(model =>
     model.model_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     model.provider.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Model Catalog</h1>
+          <Button onClick={() => refetch()}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry
+          </Button>
+        </div>
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-6">
+            <div className="text-red-800">
+              <h3 className="font-semibold mb-2">Error loading models</h3>
+              <p className="text-sm">{error.message}</p>
+              <p className="text-xs mt-2 text-red-600">
+                Check the console for more details.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -93,11 +136,22 @@ export default function ModelsPage() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Model Catalog</h1>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Model
-        </Button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Model Catalog</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            {models?.length || 0} models available
+          </p>
+        </div>
+        <div className="flex space-x-2">
+          <Button variant="outline" onClick={() => refetch()}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Model
+          </Button>
+        </div>
       </div>
 
       <div className="mb-6">
@@ -118,6 +172,9 @@ export default function ModelsPage() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-lg font-medium">{model.model_name}</CardTitle>
               <div className="flex items-center space-x-2">
+                <Badge className={getProviderColor(model.provider)}>
+                  {model.provider}
+                </Badge>
                 <Badge className={getModalityColor(model.modality)}>
                   {model.modality}
                 </Badge>
