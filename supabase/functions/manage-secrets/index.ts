@@ -18,50 +18,63 @@ serve(async (req) => {
     
     console.log(`Action: ${action}, Secret: ${secretName}`);
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!serviceRoleKey || !supabaseUrl) {
+      throw new Error('Missing Supabase configuration');
+    }
+
+    // Create Supabase client with service role
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
     if (action === 'set') {
-      // For Supabase secrets, we need to use the vault schema
-      const supabaseUrl = Deno.env.get('SUPABASE_URL');
-      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-      
-      if (!serviceRoleKey || !supabaseUrl) {
-        throw new Error('Missing Supabase configuration');
-      }
-
-      // Create Supabase client with service role
-      const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-      // Use the vault.secrets table to store secrets
+      // Store API key in our custom table
       const { error } = await supabase
-        .from('vault.secrets')
+        .from('api_keys_storage')
         .upsert({
-          name: secretName,
-          secret: secretValue
+          key_name: secretName,
+          key_value: secretValue
         });
 
       if (error) {
-        console.error('Error storing secret:', error);
-        throw new Error(`Failed to store secret: ${error.message}`);
+        console.error('Error storing API key:', error);
+        throw new Error(`Failed to store API key: ${error.message}`);
       }
 
-      console.log(`Successfully stored secret: ${secretName}`);
+      console.log(`Successfully stored API key: ${secretName}`);
 
       return new Response(JSON.stringify({ 
         success: true, 
-        message: `Secret ${secretName} has been saved successfully` 
+        message: `API key ${secretName} has been saved successfully` 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (action === 'get') {
-      // Check if secret exists by trying to read it from environment
-      // In production, secrets are available as environment variables
-      const secretExists = Deno.env.get(secretName) !== undefined;
-      
-      console.log(`Checking secret ${secretName}: exists = ${secretExists}`);
+      // Check if API key exists in our table
+      const { data, error } = await supabase
+        .from('api_keys_storage')
+        .select('key_name')
+        .eq('key_name', secretName)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking API key:', error);
+        return new Response(JSON.stringify({ 
+          exists: false,
+          name: secretName
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const exists = !!data;
+      console.log(`Checking API key ${secretName}: exists = ${exists}`);
       
       return new Response(JSON.stringify({ 
-        exists: secretExists,
+        exists: exists,
         name: secretName
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

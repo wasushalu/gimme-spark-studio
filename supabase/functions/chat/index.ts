@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -16,48 +15,44 @@ serve(async (req) => {
   try {
     console.log('=== CHAT FUNCTION START ===');
     console.log('Request method:', req.method);
-    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
     
-    // Debug environment variables first
-    const allEnvVars = Deno.env.toObject();
-    const envVarNames = Object.keys(allEnvVars);
-    console.log('Total environment variables count:', envVarNames.length);
-    console.log('Environment variable names:', envVarNames);
-    
-    // Check for OpenAI key variations
-    const openaiKeyVariations = [
-      'OPENAI_API_KEY',
-      'OPENAI_KEY', 
-      'OPEN_AI_API_KEY',
-      'OPEN_AI_KEY'
-    ];
-    
-    let foundOpenAIKey = null;
-    let foundKeyName = null;
-    
-    for (const keyName of openaiKeyVariations) {
-      const keyValue = Deno.env.get(keyName);
-      if (keyValue) {
-        foundOpenAIKey = keyValue;
-        foundKeyName = keyName;
-        console.log(`Found OpenAI key with name: ${keyName}, length: ${keyValue.length}, starts with: ${keyValue.substring(0, 7)}...`);
-        break;
-      }
-    }
-    
-    if (!foundOpenAIKey) {
-      console.error('NO OpenAI API key found in any variation');
-      console.log('Checked variations:', openaiKeyVariations);
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Get OpenAI API key from database
+    console.log('Fetching OpenAI API key from database...');
+    const { data: apiKeyData, error: apiKeyError } = await supabaseClient
+      .from('api_keys_storage')
+      .select('key_value')
+      .eq('key_name', 'OPENAI_API_KEY')
+      .maybeSingle();
+
+    if (apiKeyError) {
+      console.error('Error fetching API key:', apiKeyError);
       return new Response(JSON.stringify({ 
-        error: 'OpenAI API key not configured',
-        details: 'Please add OPENAI_API_KEY to your Supabase Edge Function secrets',
-        checkedKeys: openaiKeyVariations,
-        availableKeys: envVarNames.filter(key => key.toLowerCase().includes('openai'))
+        error: 'Failed to fetch API key configuration',
+        details: apiKeyError.message
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    if (!apiKeyData?.key_value) {
+      console.error('OpenAI API key not found in database');
+      return new Response(JSON.stringify({ 
+        error: 'OpenAI API key not configured',
+        details: 'Please add your OpenAI API key in the admin panel at /admin/api-keys'
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const openaiApiKey = apiKeyData.key_value;
+    console.log('Found OpenAI API key in database, length:', openaiApiKey.length);
 
     const { conversationId, message, agentType, agentConfig, isGuest } = await req.json();
     
@@ -65,7 +60,6 @@ serve(async (req) => {
       conversationId, 
       agentType, 
       hasAgentConfig: !!agentConfig,
-      agentConfigKeys: agentConfig ? Object.keys(agentConfig) : [],
       messageLength: message?.length,
       isGuest: !!isGuest
     });
@@ -79,11 +73,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
 
     // Get conversation messages for context (only for authenticated users with conversations)
     let messages = [];
@@ -159,25 +148,20 @@ serve(async (req) => {
     try {
       if (textModel?.provider === 'openai') {
         console.log('Calling OpenAI with model:', textModel.model);
-        aiResponse = await callOpenAI(textModel.model, conversationHistory, config, foundOpenAIKey);
+        aiResponse = await callOpenAI(textModel.model, conversationHistory, config, openaiApiKey);
       } else if (textModel?.provider === 'anthropic') {
         console.log('Calling Anthropic with model:', textModel.model);
-        aiResponse = await callAnthropic(textModel.model, conversationHistory, config);
+        aiResponse = await callAnthropic(textModel.model, conversationHistory, config, supabaseClient);
       } else if (textModel?.provider === 'perplexity') {
         console.log('Calling Perplexity with model:', textModel.model);
-        aiResponse = await callPerplexity(textModel.model, conversationHistory, config);
+        aiResponse = await callPerplexity(textModel.model, conversationHistory, config, supabaseClient);
       } else {
         // Default to OpenAI if provider not recognized
         console.log('Unknown provider, defaulting to OpenAI');
-        aiResponse = await callOpenAI('gpt-4o-mini', conversationHistory, config, foundOpenAIKey);
+        aiResponse = await callOpenAI('gpt-4o-mini', conversationHistory, config, openaiApiKey);
       }
     } catch (aiError) {
       console.error('Error calling AI service:', aiError);
-      console.error('AI error details:', {
-        message: aiError.message,
-        stack: aiError.stack,
-        name: aiError.name
-      });
       return new Response(JSON.stringify({ 
         error: 'Failed to get AI response',
         details: aiError.message,
@@ -219,7 +203,6 @@ serve(async (req) => {
 
       if (saveError) {
         console.error('Error saving AI response:', saveError);
-        // Don't fail the request if saving fails, just log the error
         console.warn('Continuing despite save error');
       } else {
         console.log('AI response saved successfully');
@@ -236,16 +219,9 @@ serve(async (req) => {
   } catch (error) {
     console.error('=== CHAT FUNCTION ERROR ===');
     console.error('Error in chat function:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      cause: error.cause
-    });
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
-      details: error.message,
-      stack: error.stack
+      details: error.message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -373,8 +349,15 @@ async function callOpenAI(model: string, messages: any[], config: any, apiKey: s
   }
 }
 
-async function callAnthropic(model: string, messages: any[], config: any) {
-  const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+async function callAnthropic(model: string, messages: any[], config: any, supabaseClient: any) {
+  // Get Anthropic API key from database
+  const { data: apiKeyData } = await supabaseClient
+    .from('api_keys_storage')
+    .select('key_value')
+    .eq('key_name', 'ANTHROPIC_API_KEY')
+    .maybeSingle();
+
+  const anthropicApiKey = apiKeyData?.key_value;
   if (!anthropicApiKey) {
     throw new Error('Anthropic API key not configured');
   }
@@ -415,8 +398,15 @@ async function callAnthropic(model: string, messages: any[], config: any) {
   return data.content[0].text;
 }
 
-async function callPerplexity(model: string, messages: any[], config: any) {
-  const perplexityApiKey = Deno.env.get('PERPLEXITY_API_KEY');
+async function callPerplexity(model: string, messages: any[], config: any, supabaseClient: any) {
+  // Get Perplexity API key from database
+  const { data: apiKeyData } = await supabaseClient
+    .from('api_keys_storage')
+    .select('key_value')
+    .eq('key_name', 'PERPLEXITY_API_KEY')
+    .maybeSingle();
+
+  const perplexityApiKey = apiKeyData?.key_value;
   if (!perplexityApiKey) {
     throw new Error('Perplexity API key not configured');
   }

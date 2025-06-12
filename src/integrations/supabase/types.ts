@@ -119,6 +119,30 @@ export type Database = {
         }
         Relationships: []
       }
+      api_keys_storage: {
+        Row: {
+          created_at: string
+          id: string
+          key_name: string
+          key_value: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key_name: string
+          key_value: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key_name?: string
+          key_value?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       brand_vault_files: {
         Row: {
           created_at: string
