@@ -1,6 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useChatAuth } from './useChatAuth';
 import { useChatConfig } from './useChatConfig';
 import { useChatMessages } from './useChatMessages';
