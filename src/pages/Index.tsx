@@ -1,8 +1,7 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Bot, Studio, MessageCircle } from "lucide-react";
+import { Bot, Palette, MessageCircle } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -19,7 +18,7 @@ const Index = () => {
       id: 'studio',
       name: 'studio',
       description: 'Creative Ideas Generator',
-      icon: Studio,
+      icon: Palette,
       primary: false,
     },
     {
