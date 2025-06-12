@@ -56,7 +56,7 @@ export function GimmebotPage() {
             <div>
               <h1 className="text-2xl font-bold gradient-text">gimmebot</h1>
               <p className="text-muted-foreground text-sm mt-1">
-                Your free marketing assistant
+                Your marketing guide at gimmefy.ai
               </p>
             </div>
           </div>
@@ -144,10 +144,10 @@ export function GimmebotPage() {
         <Card className="h-full notion-shadow-lg">
           <ChatInterface
             agentName="gimmebot"
-            agentDescription="Free marketing assistant - no login required"
+            agentDescription="Your marketing guide at gimmefy.ai"
             agentIcon={MessageCircle}
-            placeholder="Ask me anything about marketing..."
-            welcomeMessage="Hi there! 👋 I'm gimmebot, your friendly marketing assistant. I'm here to help with any marketing questions or challenges you have. What would you like to explore today?"
+            placeholder="Ask me about marketing, gimmefy features, or how I can help..."
+            welcomeMessage="Hello there! 🤔 I'm gimmebot, your friendly marketing guide here at gimmefy.ai. I'm here to help you navigate the world of marketing, answer questions about gimmefy's features, and point you toward exactly what you need. Whether you're exploring content strategies, curious about our platform, or just want some marketing wisdom—I'm all ears! What brings you here today?"
             messages={interfaceMessages}
             isLoading={isLoading || messagesLoading}
             onSendMessage={handleSendMessage}
