@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -120,9 +121,20 @@ serve(async (req) => {
       };
     }
 
+    // Normalize model names to ensure compatibility with OpenAI API
+    let modelName = config.model?.text?.model || 'gpt-4o-mini';
+    if (modelName === 'gpt-4.1-2025-04-14') {
+      modelName = 'gpt-4o';
+    } else if (modelName === 'o4-mini-2025-04-16') {
+      modelName = 'gpt-4o-mini';
+    } else if (modelName === 'o3-2025-04-16') {
+      modelName = 'gpt-4o'; // fallback to gpt-4o for o3
+    }
+
     console.log('Final config:', {
       modelProvider: config.model?.text?.provider,
-      modelName: config.model?.text?.model,
+      originalModelName: config.model?.text?.model,
+      normalizedModelName: modelName,
       promptLength: config.prompt?.length,
       temperature: config.generation?.temperature
     });
@@ -147,14 +159,14 @@ serve(async (req) => {
 
     try {
       if (textModel?.provider === 'openai') {
-        console.log('Calling OpenAI with model:', textModel.model);
-        aiResponse = await callOpenAI(textModel.model, conversationHistory, config, openaiApiKey);
+        console.log('Calling OpenAI with model:', modelName);
+        aiResponse = await callOpenAI(modelName, conversationHistory, config, openaiApiKey);
       } else if (textModel?.provider === 'anthropic') {
-        console.log('Calling Anthropic with model:', textModel.model);
-        aiResponse = await callAnthropic(textModel.model, conversationHistory, config, supabaseClient);
+        console.log('Calling Anthropic with model:', modelName);
+        aiResponse = await callAnthropic(modelName, conversationHistory, config, supabaseClient);
       } else if (textModel?.provider === 'perplexity') {
-        console.log('Calling Perplexity with model:', textModel.model);
-        aiResponse = await callPerplexity(textModel.model, conversationHistory, config, supabaseClient);
+        console.log('Calling Perplexity with model:', modelName);
+        aiResponse = await callPerplexity(modelName, conversationHistory, config, supabaseClient);
       } else {
         // Default to OpenAI if provider not recognized
         console.log('Unknown provider, defaulting to OpenAI');
@@ -166,7 +178,7 @@ serve(async (req) => {
         error: 'Failed to get AI response',
         details: aiError.message,
         provider: textModel?.provider || 'openai',
-        model: textModel?.model || 'gpt-4o-mini'
+        model: modelName
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -195,7 +207,7 @@ serve(async (req) => {
           role: 'assistant',
           content: aiResponse,
           metadata: {
-            model: textModel?.model || 'gpt-4o-mini',
+            model: modelName,
             provider: textModel?.provider || 'openai',
             temperature: config.generation?.temperature || 0.7
           }
