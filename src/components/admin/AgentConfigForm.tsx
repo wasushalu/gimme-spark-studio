@@ -26,6 +26,14 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
     getModelsByModality
   } = useAgentConfig(agent);
 
+  console.log('AgentConfigForm: Rendering with:', {
+    agentId: agent?.agent_id,
+    modelsCount: models.length,
+    configExists: !!config,
+    modelsLoading,
+    modelsError: modelsError?.message
+  });
+
   // Early return if no agent is provided
   if (!agent) {
     return (
@@ -44,16 +52,13 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
   }
 
   const handleSave = () => {
+    console.log('AgentConfigForm: Saving config:', config);
     saveConfigMutation.mutate(config);
   };
 
-  const handleSaveSuccess = () => {
-    onClose();
-  };
-
-  // Subscribe to save success
+  // Handle save success
   if (saveConfigMutation.isSuccess) {
-    handleSaveSuccess();
+    onClose();
   }
 
   return (
@@ -61,20 +66,27 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
       <Card className="w-full max-w-6xl max-h-[90vh] overflow-y-auto">
         <CardHeader>
           <CardTitle>Configure Agent: {agent.label}</CardTitle>
-          {modelsError && (
-            <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-              Error loading models: {modelsError.message}
-            </div>
-          )}
+          
+          {/* Status indicators */}
           {modelsLoading && (
             <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
               Loading available models...
             </div>
           )}
-          <div className="text-sm text-gray-600">
-            Available models: {models.length} ({models.filter(m => m.modality === 'text').length} text, {models.filter(m => m.modality === 'image').length} image)
-          </div>
+          
+          {modelsError && (
+            <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+              Error loading models: {modelsError.message}
+            </div>
+          )}
+          
+          {!modelsLoading && !modelsError && (
+            <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
+              Loaded {models.length} models ({models.filter(m => m.modality === 'text').length} text, {models.filter(m => m.modality === 'image').length} image)
+            </div>
+          )}
         </CardHeader>
+        
         <CardContent>
           <Tabs defaultValue="models" className="w-full">
             <TabsList className="grid w-full grid-cols-5">
@@ -115,7 +127,10 @@ export default function AgentConfigForm({ agent, onClose }: AgentConfigFormProps
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={saveConfigMutation.isPending}>
+            <Button 
+              onClick={handleSave} 
+              disabled={saveConfigMutation.isPending || modelsLoading}
+            >
               {saveConfigMutation.isPending ? 'Saving...' : 'Save Configuration'}
             </Button>
           </div>

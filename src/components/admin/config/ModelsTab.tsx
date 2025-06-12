@@ -11,136 +11,142 @@ interface ModelsTabProps {
 }
 
 export default function ModelsTab({ config, setConfig, models, getModelsByModality }: ModelsTabProps) {
-  console.log('ModelsTab: Render with props:', {
-    totalModels: models.length,
-    textModels: getModelsByModality('text').length,
-    imageModels: getModelsByModality('image').length,
-    currentConfig: config?.model,
-    configExists: !!config
-  });
-
-  // Ensure config has the proper structure
+  // Get current model selections
   const currentTextModel = config?.model?.text?.model || '';
   const currentImageModel = config?.model?.image?.model || '';
   
-  console.log('ModelsTab: Current selections:', {
-    textModel: currentTextModel,
-    imageModel: currentImageModel
-  });
-
+  // Get models by modality
   const textModels = getModelsByModality('text');
   const imageModels = getModelsByModality('image');
 
-  console.log('ModelsTab: Available models breakdown:', {
-    textModels: textModels.map(m => ({ name: m.model_name, provider: m.provider })),
-    imageModels: imageModels.map(m => ({ name: m.model_name, provider: m.provider }))
+  console.log('ModelsTab: Component state:', {
+    totalModels: models.length,
+    textModels: textModels.length,
+    imageModels: imageModels.length,
+    currentTextModel,
+    currentImageModel,
+    textModelsList: textModels.map(m => m.model_name),
+    imageModelsList: imageModels.map(m => m.model_name)
   });
 
-  return (
-    <div className="space-y-4">
-      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-        <p className="text-sm text-blue-800">
-          Debug: Total models: {models.length} | 
-          Text: {textModels.length} | 
-          Image: {imageModels.length}
-        </p>
-        <p className="text-xs text-blue-600 mt-1">
-          Current: Text={currentTextModel} | Image={currentImageModel}
-        </p>
-      </div>
+  const updateTextModel = (modelName: string) => {
+    const selectedModel = textModels.find(m => m.model_name === modelName);
+    console.log('ModelsTab: Updating text model:', { modelName, selectedModel });
+    
+    setConfig(prev => ({
+      ...prev,
+      model: {
+        ...prev.model,
+        text: {
+          provider: selectedModel?.provider || 'openai',
+          model: modelName
+        }
+      }
+    }));
+  };
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
+  const updateImageModel = (modelName: string) => {
+    const selectedModel = imageModels.find(m => m.model_name === modelName);
+    console.log('ModelsTab: Updating image model:', { modelName, selectedModel });
+    
+    setConfig(prev => ({
+      ...prev,
+      model: {
+        ...prev.model,
+        image: {
+          provider: selectedModel?.provider || 'openai',
+          model: modelName
+        }
+      }
+    }));
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
           <Label htmlFor="text-model">Text Model</Label>
           <Select
             value={currentTextModel}
-            onValueChange={(value) => {
-              const selectedModel = models.find(m => m.model_name === value && m.modality === 'text');
-              console.log('ModelsTab: Selected text model:', { value, selectedModel });
-              setConfig(prev => ({
-                ...prev,
-                model: {
-                  ...prev.model,
-                  text: {
-                    provider: selectedModel?.provider || 'openai',
-                    model: value
-                  }
-                }
-              }));
-            }}
+            onValueChange={updateTextModel}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select text model" />
             </SelectTrigger>
             <SelectContent>
-              {textModels.map((model) => (
-                <SelectItem key={`text-${model.id}`} value={model.model_name}>
-                  {model.provider} - {model.model_name}
-                </SelectItem>
-              ))}
-              {textModels.length === 0 && (
+              {textModels.length > 0 ? (
+                textModels.map((model) => (
+                  <SelectItem key={`text-${model.id}`} value={model.model_name}>
+                    {model.provider} - {model.model_name}
+                  </SelectItem>
+                ))
+              ) : (
                 <SelectItem value="no-models" disabled>
                   No text models available
                 </SelectItem>
               )}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground mt-1">
-            {textModels.length} text models available
+          <p className="text-xs text-muted-foreground">
+            {textModels.length} text model{textModels.length !== 1 ? 's' : ''} available
           </p>
         </div>
 
-        <div>
+        <div className="space-y-2">
           <Label htmlFor="image-model">Image Model</Label>
           <Select
             value={currentImageModel}
-            onValueChange={(value) => {
-              const selectedModel = models.find(m => m.model_name === value && m.modality === 'image');
-              console.log('ModelsTab: Selected image model:', { value, selectedModel });
-              setConfig(prev => ({
-                ...prev,
-                model: {
-                  ...prev.model,
-                  image: {
-                    provider: selectedModel?.provider || 'openai',
-                    model: value
-                  }
-                }
-              }));
-            }}
+            onValueChange={updateImageModel}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select image model" />
             </SelectTrigger>
             <SelectContent>
-              {imageModels.map((model) => (
-                <SelectItem key={`image-${model.id}`} value={model.model_name}>
-                  {model.provider} - {model.model_name}
-                </SelectItem>
-              ))}
-              {imageModels.length === 0 && (
+              {imageModels.length > 0 ? (
+                imageModels.map((model) => (
+                  <SelectItem key={`image-${model.id}`} value={model.model_name}>
+                    {model.provider} - {model.model_name}
+                  </SelectItem>
+                ))
+              ) : (
                 <SelectItem value="no-models" disabled>
                   No image models available
                 </SelectItem>
               )}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground mt-1">
-            {imageModels.length} image models available
+          <p className="text-xs text-muted-foreground">
+            {imageModels.length} image model{imageModels.length !== 1 ? 's' : ''} available
           </p>
         </div>
       </div>
 
-      {/* Show all available models for debugging */}
-      <div className="mt-6 p-3 bg-gray-50 rounded-lg">
-        <h4 className="text-sm font-medium mb-2">All Available Models (Debug):</h4>
+      {/* Debug information */}
+      <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+        <h4 className="text-sm font-medium text-blue-900 mb-2">Debug Information</h4>
+        <div className="text-xs text-blue-800 space-y-1">
+          <p>Total models in catalog: {models.length}</p>
+          <p>Text models: {textModels.length} ({textModels.map(m => m.model_name).join(', ')})</p>
+          <p>Image models: {imageModels.length} ({imageModels.map(m => m.model_name).join(', ')})</p>
+          <p>Current selections: Text={currentTextModel}, Image={currentImageModel}</p>
+        </div>
+      </div>
+
+      {/* All models list for verification */}
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <h4 className="text-sm font-medium text-gray-900 mb-2">All Available Models</h4>
         <div className="text-xs space-y-1">
           {models.map((model) => (
-            <div key={model.id} className="flex justify-between">
+            <div key={model.id} className="flex justify-between items-center">
               <span>{model.provider} - {model.model_name}</span>
-              <span className="text-gray-500">({model.modality})</span>
+              <span className="text-gray-500 px-2 py-1 bg-white rounded text-xs">
+                {model.modality}
+              </span>
             </div>
           ))}
+          {models.length === 0 && (
+            <p className="text-gray-500">No models found in the catalog</p>
+          )}
         </div>
       </div>
     </div>

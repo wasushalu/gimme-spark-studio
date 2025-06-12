@@ -21,10 +21,11 @@ export function useAgentConfig(agent: Agent | null) {
         .select('*')
         .eq('agent_id', agent.agent_id)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
       
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('useAgentConfig: Error fetching config:', error);
+        return null;
       }
       console.log('useAgentConfig: Config result:', data);
       return data as AgentConfigVersion | null;
@@ -56,13 +57,6 @@ export function useAgentConfig(agent: Agent | null) {
         console.error('useAgentConfig: Error fetching models for config:', error);
         throw error;
       }
-      
-      console.log('useAgentConfig: Model breakdown by modality:');
-      const modalityBreakdown = data?.reduce((acc, model) => {
-        acc[model.modality] = (acc[model.modality] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-      console.log('useAgentConfig: Modality breakdown:', modalityBreakdown);
       
       return data as ModelCatalog[];
     }
@@ -102,12 +96,8 @@ export function useAgentConfig(agent: Agent | null) {
     }
   };
 
-  // Initialize config state with proper default values
-  const [config, setConfig] = useState(() => {
-    const initialConfig = currentConfig?.settings || defaultConfig;
-    console.log('useAgentConfig: Initializing config state:', initialConfig);
-    return initialConfig;
-  });
+  // Initialize config state properly
+  const [config, setConfig] = useState(defaultConfig);
 
   // Update config when currentConfig changes
   useEffect(() => {
@@ -166,15 +156,20 @@ export function useAgentConfig(agent: Agent | null) {
 
   const getModelsByModality = (modality: string) => {
     const filtered = models.filter(model => model.modality === modality);
-    console.log(`useAgentConfig: getModelsByModality(${modality}) returning ${filtered.length} models:`, filtered);
+    console.log(`useAgentConfig: getModelsByModality(${modality}) returning ${filtered.length} models:`, filtered.map(m => m.model_name));
     return filtered;
   };
 
-  console.log('useAgentConfig: Current hook state:', {
+  console.log('useAgentConfig: Hook state summary:', {
+    agentId: agent?.agent_id,
+    totalModels: models.length,
+    textModels: getModelsByModality('text').length,
+    imageModels: getModelsByModality('image').length,
     configLoaded: !!config,
-    modelsLoaded: models.length > 0,
-    currentConfigFromDB: !!currentConfig,
-    agentId: agent?.agent_id
+    currentTextModel: config?.model?.text?.model,
+    currentImageModel: config?.model?.image?.model,
+    modelsLoading,
+    modelsError: modelsError?.message
   });
 
   return {
