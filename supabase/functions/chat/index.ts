@@ -85,6 +85,17 @@ serve(async (req) => {
       };
     }
 
+    // Validate and fix model configuration
+    const textModel = config.model?.text;
+    if (textModel?.provider === 'openai') {
+      // Map common invalid model names to valid ones
+      const validOpenAIModels = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'];
+      if (!validOpenAIModels.includes(textModel.model)) {
+        console.log(`Invalid OpenAI model "${textModel.model}", falling back to gpt-4o-mini`);
+        textModel.model = 'gpt-4o-mini';
+      }
+    }
+
     console.log('Final config:', {
       modelProvider: config.model?.text?.provider,
       modelName: config.model?.text?.model,
@@ -107,7 +118,6 @@ serve(async (req) => {
     console.log('Conversation history:', conversationHistory.length, 'messages');
 
     // Determine which AI service to use based on the configured model
-    const textModel = config.model?.text;
     let aiResponse;
 
     try {
