@@ -26,7 +26,13 @@ serve(async (req) => {
     });
 
     if (!message) {
-      throw new Error('Message is required');
+      console.error('Message is required but not provided');
+      return new Response(JSON.stringify({ 
+        error: 'Message is required' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const supabaseClient = createClient(
@@ -37,6 +43,7 @@ serve(async (req) => {
     // Get conversation messages for context (only for authenticated users with conversations)
     let messages = [];
     if (conversationId && !isGuest) {
+      console.log('Fetching conversation messages for authenticated user');
       const { data: conversationMessages, error: messagesError } = await supabaseClient
         .from('chat_messages')
         .select('*')
@@ -45,10 +52,16 @@ serve(async (req) => {
 
       if (messagesError) {
         console.error('Error fetching messages:', messagesError);
-        throw messagesError;
+        return new Response(JSON.stringify({ 
+          error: 'Failed to fetch conversation messages',
+          details: messagesError.message
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
-      messages = conversationMessages;
+      messages = conversationMessages || [];
       console.log(`Found ${messages.length} messages in conversation`);
     } else {
       console.log('Guest user or no conversation - starting fresh conversation');
@@ -97,25 +110,47 @@ serve(async (req) => {
     const textModel = config.model?.text;
     let aiResponse;
 
-    if (textModel?.provider === 'openai') {
-      console.log('Calling OpenAI with model:', textModel.model);
-      aiResponse = await callOpenAI(textModel.model, conversationHistory, config);
-    } else if (textModel?.provider === 'anthropic') {
-      console.log('Calling Anthropic with model:', textModel.model);
-      aiResponse = await callAnthropic(textModel.model, conversationHistory, config);
-    } else if (textModel?.provider === 'perplexity') {
-      console.log('Calling Perplexity with model:', textModel.model);
-      aiResponse = await callPerplexity(textModel.model, conversationHistory, config);
-    } else {
-      // Default to OpenAI if provider not recognized
-      console.log('Unknown provider, defaulting to OpenAI');
-      aiResponse = await callOpenAI('gpt-4o-mini', conversationHistory, config);
+    try {
+      if (textModel?.provider === 'openai') {
+        console.log('Calling OpenAI with model:', textModel.model);
+        aiResponse = await callOpenAI(textModel.model, conversationHistory, config);
+      } else if (textModel?.provider === 'anthropic') {
+        console.log('Calling Anthropic with model:', textModel.model);
+        aiResponse = await callAnthropic(textModel.model, conversationHistory, config);
+      } else if (textModel?.provider === 'perplexity') {
+        console.log('Calling Perplexity with model:', textModel.model);
+        aiResponse = await callPerplexity(textModel.model, conversationHistory, config);
+      } else {
+        // Default to OpenAI if provider not recognized
+        console.log('Unknown provider, defaulting to OpenAI');
+        aiResponse = await callOpenAI('gpt-4o-mini', conversationHistory, config);
+      }
+    } catch (aiError) {
+      console.error('Error calling AI service:', aiError);
+      return new Response(JSON.stringify({ 
+        error: 'Failed to get AI response',
+        details: aiError.message
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log('AI response received, length:', aiResponse?.length);
 
+    if (!aiResponse) {
+      console.error('AI response is empty or null');
+      return new Response(JSON.stringify({ 
+        error: 'AI response is empty' 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Save AI response to database only for authenticated users with conversations
     if (conversationId && !isGuest) {
+      console.log('Saving AI response to database');
       const { error: saveError } = await supabaseClient
         .from('chat_messages')
         .insert({
@@ -131,10 +166,11 @@ serve(async (req) => {
 
       if (saveError) {
         console.error('Error saving AI response:', saveError);
-        throw saveError;
+        // Don't fail the request if saving fails, just log the error
+        console.warn('Continuing despite save error');
+      } else {
+        console.log('AI response saved successfully');
       }
-
-      console.log('AI response saved successfully');
     } else {
       console.log('Guest user - AI response not saved to database');
     }
@@ -146,8 +182,9 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in chat function:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
-      details: error.toString()
+      error: 'Internal server error',
+      details: error.message,
+      stack: error.stack
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -179,6 +216,7 @@ async function callOpenAI(model: string, messages: any[], config: any) {
   const maxTokens = config.generation?.max_response_tokens || 4000;
 
   console.log('OpenAI call with system prompt length:', systemPrompt.length);
+  console.log('OpenAI messages count:', messages.length);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -205,6 +243,11 @@ async function callOpenAI(model: string, messages: any[], config: any) {
 
   const data = await response.json();
   console.log('OpenAI response structure:', Object.keys(data));
+  
+  if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+    console.error('Unexpected OpenAI response structure:', data);
+    throw new Error('Unexpected OpenAI response structure');
+  }
   
   return data.choices[0].message.content;
 }
@@ -235,7 +278,19 @@ async function callAnthropic(model: string, messages: any[], config: any) {
     }),
   });
 
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error('Anthropic API error:', response.status, errorData);
+    throw new Error(`Anthropic API error: ${response.status} ${errorData}`);
+  }
+
   const data = await response.json();
+  
+  if (!data.content || !data.content[0] || !data.content[0].text) {
+    console.error('Unexpected Anthropic response structure:', data);
+    throw new Error('Unexpected Anthropic response structure');
+  }
+  
   return data.content[0].text;
 }
 
@@ -266,6 +321,18 @@ async function callPerplexity(model: string, messages: any[], config: any) {
     }),
   });
 
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error('Perplexity API error:', response.status, errorData);
+    throw new Error(`Perplexity API error: ${response.status} ${errorData}`);
+  }
+
   const data = await response.json();
+  
+  if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+    console.error('Unexpected Perplexity response structure:', data);
+    throw new Error('Unexpected Perplexity response structure');
+  }
+  
   return data.choices[0].message.content;
 }
