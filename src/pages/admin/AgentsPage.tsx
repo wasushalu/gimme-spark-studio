@@ -23,9 +23,10 @@ export default function AgentsPage() {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [showConfigForm, setShowConfigForm] = useState(false);
 
-  const { data: agents, isLoading, refetch } = useQuery({
+  const { data: agents, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-agents'],
     queryFn: async () => {
+      console.log('Fetching agents from database...');
       const { data, error } = await supabase
         .from('agents')
         .select('*')
@@ -33,8 +34,15 @@ export default function AgentsPage() {
       
       if (error) {
         console.error('Error fetching agents:', error);
-        return [];
+        toast({
+          title: 'Error loading agents',
+          description: error.message,
+          variant: 'destructive',
+        });
+        throw error;
       }
+      
+      console.log('Agents fetched:', data);
       return data as Agent[];
     }
   });
@@ -106,6 +114,22 @@ export default function AgentsPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Agent Management</h1>
+          <div className="text-red-600 mb-4">
+            <p>Error loading agents: {error.message}</p>
+          </div>
+          <Button onClick={() => refetch()}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -114,6 +138,18 @@ export default function AgentsPage() {
           <Plus className="w-4 h-4 mr-2" />
           Create Agent
         </Button>
+      </div>
+
+      {/* Debug info */}
+      <div className="mb-4 p-4 bg-gray-100 rounded">
+        <p className="text-sm text-gray-600">
+          Debug: Found {agents?.length || 0} agents in database
+        </p>
+        {agents && agents.length === 0 && (
+          <p className="text-sm text-orange-600 mt-2">
+            No agents found. The database might need to be seeded with initial agents.
+          </p>
+        )}
       </div>
 
       <div className="grid gap-4">
@@ -181,10 +217,10 @@ export default function AgentsPage() {
         <div className="text-center py-12">
           <Bot className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No agents found</h3>
-          <p className="text-gray-500 mb-4">Get started by creating your first agent.</p>
-          <Button>
+          <p className="text-gray-500 mb-4">The database appears to be empty. Initial agents should be seeded.</p>
+          <Button onClick={() => refetch()}>
             <Plus className="w-4 h-4 mr-2" />
-            Create Agent
+            Refresh
           </Button>
         </div>
       )}
