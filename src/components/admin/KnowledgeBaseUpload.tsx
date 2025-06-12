@@ -34,6 +34,9 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
+    console.log('Starting file upload for agent:', agentId);
+    console.log('Files to upload:', files.map(f => f.name));
+
     // Validate all files first
     const allowedTypes = ['application/pdf', 'text/plain', 'text/markdown', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     const invalidFiles = files.filter(file => !allowedTypes.includes(file.type));
@@ -57,6 +60,19 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
       return;
     }
 
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      toast({
+        title: 'Authentication Error',
+        description: 'You must be logged in to upload documents.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    console.log('User authenticated:', user.id);
+
     // Initialize uploading files state
     const initialUploadingFiles = files.map(file => ({
       file,
@@ -66,17 +82,22 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
 
     setUploadingFiles(initialUploadingFiles);
 
+    let successCount = 0;
+    let errorCount = 0;
+
     // Process files sequentially to avoid overwhelming the system
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       
       try {
-        await uploadSingleFile(file, i);
+        await uploadSingleFile(file, i, user.id);
+        successCount++;
       } catch (error) {
         console.error(`Upload error for ${file.name}:`, error);
+        errorCount++;
         setUploadingFiles(prev => prev.map((uploadingFile, index) => 
           index === i 
-            ? { ...uploadingFile, status: 'error', error: 'Upload failed' }
+            ? { ...uploadingFile, status: 'error', error: 'Upload failed: ' + (error as Error).message }
             : uploadingFile
         ));
       }
@@ -89,9 +110,6 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
     event.target.value = '';
 
     // Show completion toast
-    const successCount = uploadingFiles.filter(f => f.status === 'completed').length;
-    const errorCount = uploadingFiles.filter(f => f.status === 'error').length;
-    
     if (successCount > 0) {
       toast({
         title: `${successCount} document(s) uploaded successfully`,
@@ -113,10 +131,9 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
     }, 3000);
   };
 
-  const uploadSingleFile = async (file: File, index: number) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-
+  const uploadSingleFile = async (file: File, index: number, userId: string) => {
+    console.log(`Starting upload for file: ${file.name}, size: ${file.size}, type: ${file.type}`);
+    
     // Update progress: starting upload
     setUploadingFiles(prev => prev.map((uploadingFile, i) => 
       i === index ? { ...uploadingFile, progress: 10 } : uploadingFile
@@ -126,12 +143,19 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
     const documentTitle = file.name.replace(/\.[^/.]+$/, "");
 
     // Upload file to storage
-    const filePath = `${user.id}/${agentId}/${Date.now()}_${file.name}`;
+    const filePath = `${userId}/${agentId}/${Date.now()}_${file.name}`;
+    console.log('Uploading to storage path:', filePath);
+    
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('knowledge-base')
       .upload(filePath, file);
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      throw new Error(`Storage upload failed: ${uploadError.message}`);
+    }
+
+    console.log('File uploaded to storage successfully:', uploadData.path);
 
     // Update progress: file uploaded
     setUploadingFiles(prev => prev.map((uploadingFile, i) => 
@@ -151,6 +175,7 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
     };
 
     // Create document record with title
+    console.log('Creating document record for agent:', agentId);
     const { data: docData, error: docError } = await supabase
       .from('knowledge_base_documents')
       .insert({
@@ -160,12 +185,18 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
         file_size: file.size,
         mime_type: file.type,
         content_type: getContentType(file.name),
-        uploaded_by: user.id,
+        uploaded_by: userId,
+        status: 'processing'
       })
       .select('id')
       .single();
 
-    if (docError) throw docError;
+    if (docError) {
+      console.error('Document record creation error:', docError);
+      throw new Error(`Document record failed: ${docError.message}`);
+    }
+
+    console.log('Document record created:', docData.id);
 
     // Update progress: document record created
     setUploadingFiles(prev => prev.map((uploadingFile, i) => 
@@ -173,7 +204,8 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
     ));
 
     // Process document using edge function
-    const { error: processError } = await supabase.functions.invoke('process-document', {
+    console.log('Starting document processing via edge function');
+    const { data: processData, error: processError } = await supabase.functions.invoke('process-document', {
       body: {
         documentId: docData.id,
         filePath: uploadData.path,
@@ -182,7 +214,12 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
       },
     });
 
-    if (processError) throw processError;
+    if (processError) {
+      console.error('Document processing error:', processError);
+      throw new Error(`Processing failed: ${processError.message}`);
+    }
+
+    console.log('Document processed successfully:', processData);
 
     // Update progress: completed
     setUploadingFiles(prev => prev.map((uploadingFile, i) => 
@@ -213,6 +250,21 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
       return;
     }
 
+    console.log('Starting text upload for agent:', agentId);
+    console.log('Text title:', textTitle);
+    console.log('Text length:', textContent.length);
+
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      toast({
+        title: 'Authentication Error',
+        description: 'You must be logged in to upload text content.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const uploadingFile: UploadingFile = {
       file: new File([textContent], `${textTitle}.txt`, { type: 'text/plain' }),
       progress: 0,
@@ -222,23 +274,28 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
     setUploadingFiles([uploadingFile]);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
       // Create a text blob and upload it
       const textBlob = new Blob([textContent], { type: 'text/plain' });
       const fileName = `${textTitle}.txt`;
       const filePath = `${user.id}/${agentId}/${Date.now()}_${fileName}`;
 
+      console.log('Uploading text to storage path:', filePath);
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('knowledge-base')
         .upload(filePath, textBlob);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Text storage upload error:', uploadError);
+        throw new Error(`Storage upload failed: ${uploadError.message}`);
+      }
+
+      console.log('Text uploaded to storage successfully:', uploadData.path);
 
       setUploadingFiles([{ ...uploadingFile, progress: 30 }]);
 
       // Create document record
+      console.log('Creating text document record for agent:', agentId);
       const { data: docData, error: docError } = await supabase
         .from('knowledge_base_documents')
         .insert({
@@ -249,16 +306,23 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
           mime_type: 'text/plain',
           content_type: 'text',
           uploaded_by: user.id,
+          status: 'processing'
         })
         .select('id')
         .single();
 
-      if (docError) throw docError;
+      if (docError) {
+        console.error('Text document record creation error:', docError);
+        throw new Error(`Document record failed: ${docError.message}`);
+      }
+
+      console.log('Text document record created:', docData.id);
 
       setUploadingFiles([{ ...uploadingFile, progress: 60, status: 'processing' }]);
 
       // Process document using edge function
-      const { error: processError } = await supabase.functions.invoke('process-document', {
+      console.log('Starting text processing via edge function');
+      const { data: processData, error: processError } = await supabase.functions.invoke('process-document', {
         body: {
           documentId: docData.id,
           filePath: uploadData.path,
@@ -267,7 +331,12 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
         },
       });
 
-      if (processError) throw processError;
+      if (processError) {
+        console.error('Text processing error:', processError);
+        throw new Error(`Processing failed: ${processError.message}`);
+      }
+
+      console.log('Text processed successfully:', processData);
 
       setUploadingFiles([{ ...uploadingFile, progress: 100, status: 'completed' }]);
 
@@ -290,7 +359,7 @@ export default function KnowledgeBaseUpload({ agentId }: KnowledgeBaseUploadProp
 
     } catch (error) {
       console.error('Text upload error:', error);
-      setUploadingFiles([{ ...uploadingFile, status: 'error', error: 'Upload failed' }]);
+      setUploadingFiles([{ ...uploadingFile, status: 'error', error: 'Upload failed: ' + (error as Error).message }]);
       toast({
         title: 'Upload failed',
         description: 'Failed to upload text content. Please try again.',
