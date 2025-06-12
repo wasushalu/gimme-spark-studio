@@ -50,7 +50,7 @@ export function useWorkspaceData() {
   const addWorkspace = () => {
     const newWorkspace: Workspace = {
       id: Date.now().toString(),
-      name: `Workspace ${workspaces.length + 1}`,
+      name: `New Workspace ${workspaces.length + 1}`,
       projects: []
     };
     const updatedWorkspaces = [...workspaces, newWorkspace];
@@ -65,7 +65,7 @@ export function useWorkspaceData() {
     
     const newProject: Project = {
       id: Date.now().toString(),
-      name: `Project ${selectedWorkspace.projects.length + 1}`,
+      name: `New Project ${selectedWorkspace.projects.length + 1}`,
       brandVaults: []
     };
     
@@ -87,7 +87,7 @@ export function useWorkspaceData() {
     
     const newBrandVault: BrandVault = {
       id: Date.now().toString(),
-      name: `Brand Vault ${selectedProject.brandVaults.length + 1}`
+      name: `New Brand Vault ${selectedProject.brandVaults.length + 1}`
     };
     
     const updatedWorkspaces = workspaces.map(ws =>

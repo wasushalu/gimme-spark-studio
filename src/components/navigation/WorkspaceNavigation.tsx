@@ -61,7 +61,10 @@ export function WorkspaceNavigation({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="px-4 py-2 border-b-2 border-primary text-foreground font-medium flex items-center gap-2">
-                Workspace{selectedWorkspace ? `: ${selectedWorkspace.name}` : ''}
+                <div className="flex flex-col items-start">
+                  <span className="text-xs text-muted-foreground">Workspace</span>
+                  <span className="text-sm">{selectedWorkspace ? selectedWorkspace.name : 'Select workspace'}</span>
+                </div>
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -91,7 +94,10 @@ export function WorkspaceNavigation({
                 className="px-4 py-2 text-muted-foreground font-medium flex items-center gap-2"
                 disabled={!selectedWorkspace}
               >
-                Projects{selectedProject ? `: ${selectedProject.name}` : ''}
+                <div className="flex flex-col items-start">
+                  <span className="text-xs text-muted-foreground">Project</span>
+                  <span className="text-sm">{selectedProject ? selectedProject.name : 'Select project'}</span>
+                </div>
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -125,7 +131,10 @@ export function WorkspaceNavigation({
                 className="px-4 py-2 text-muted-foreground font-medium flex items-center gap-2"
                 disabled={!selectedProject}
               >
-                Brand Vault{selectedBrandVault ? `: ${selectedBrandVault.name}` : ''}
+                <div className="flex flex-col items-start">
+                  <span className="text-xs text-muted-foreground">Brand Vault</span>
+                  <span className="text-sm">{selectedBrandVault ? selectedBrandVault.name : 'Select brand vault'}</span>
+                </div>
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
