@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { Bot, Lightbulb, MessageCircle } from "lucide-react";
 
@@ -36,74 +36,67 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <div className="border-b border-border/40 px-6 py-4">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-semibold gradient-text">gimmefy</h1>
+      <div className="border-b border-border/20 px-6 py-4">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <h1 className="text-xl font-medium text-foreground">gimmefy</h1>
           <Button 
             onClick={() => navigate('/admin')} 
             variant="ghost"
             size="sm"
+            className="text-muted-foreground"
           >
             Admin
           </Button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">AI Marketing Studio</h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Choose your AI assistant and start creating amazing marketing content
-          </p>
-        </div>
+      {/* Main Content - Centered */}
+      <div className="flex-1 flex items-center justify-center px-6">
+        <div className="w-full max-w-2xl text-center space-y-8">
+          
+          {/* Main Heading */}
+          <div className="space-y-3">
+            <h2 className="text-4xl font-semibold text-foreground">
+              How can I help you today?
+            </h2>
+          </div>
 
-        {/* Agent Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          {agents.map((agent) => {
-            const IconComponent = agent.icon;
-            return (
-              <Card 
-                key={agent.id}
-                className={`cursor-pointer transition-all hover:shadow-lg ${
-                  agent.primary ? 'ring-2 ring-primary ring-offset-2' : ''
-                }`}
-                onClick={() => handleAgentSelect(agent.id)}
-              >
-                <CardContent className="p-8 text-center">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                    agent.primary ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                  }`}>
-                    <IconComponent className="w-8 h-8" />
-                  </div>
-                  <CardTitle className="mb-2">{agent.name}</CardTitle>
-                  <CardDescription className="mb-4">{agent.description}</CardDescription>
-                  <Button 
-                    className="w-full"
-                    variant={agent.primary ? "default" : "outline"}
-                  >
-                    Start Chat
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+          {/* Agent Selection Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {agents.map((agent) => {
+              const IconComponent = agent.icon;
+              return (
+                <Card 
+                  key={agent.id}
+                  className="cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] border-border/50"
+                  onClick={() => handleAgentSelect(agent.id)}
+                >
+                  <CardContent className="p-6 text-center space-y-3">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto">
+                      <IconComponent className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-foreground">{agent.name}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">{agent.description}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
 
-        {/* Quick Start with gimmebot */}
-        <div className="text-center">
-          <p className="text-sm text-muted-foreground mb-4">
-            Ready to get started? Jump right into gimmebot
-          </p>
-          <Button 
-            onClick={() => handleAgentSelect('gimmebot')}
-            size="lg"
-            className="px-8"
-          >
-            Start with gimmebot
-          </Button>
+          {/* Primary CTA */}
+          <div className="pt-4">
+            <Button 
+              onClick={() => handleAgentSelect('gimmebot')}
+              size="lg"
+              className="px-8 py-3 text-base"
+            >
+              Start with gimmebot
+            </Button>
+          </div>
         </div>
       </div>
     </div>
