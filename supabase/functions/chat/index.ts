@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -121,20 +120,12 @@ serve(async (req) => {
       };
     }
 
-    // Normalize model names to ensure compatibility with OpenAI API
-    let modelName = config.model?.text?.model || 'gpt-4o-mini';
-    if (modelName === 'gpt-4.1-2025-04-14') {
-      modelName = 'gpt-4o';
-    } else if (modelName === 'o4-mini-2025-04-16') {
-      modelName = 'gpt-4o-mini';
-    } else if (modelName === 'o3-2025-04-16') {
-      modelName = 'gpt-4o'; // fallback to gpt-4o for o3
-    }
+    // Use the model name exactly as configured in the admin panel
+    const modelName = config.model?.text?.model || 'gpt-4o-mini';
 
     console.log('Final config:', {
       modelProvider: config.model?.text?.provider,
-      originalModelName: config.model?.text?.model,
-      normalizedModelName: modelName,
+      modelName: modelName,
       promptLength: config.prompt?.length,
       temperature: config.generation?.temperature
     });
