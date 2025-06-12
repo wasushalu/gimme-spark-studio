@@ -4,8 +4,13 @@ import { AgentSelector } from "@/components/agents/AgentSelector";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { useWorkspaceData } from "@/hooks/useWorkspaceData";
 import { useChatData } from "@/hooks/useChatData";
+import { useAuth } from "@/hooks/useAuth";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Lock } from "lucide-react";
 
 const Index = () => {
+  const { user } = useAuth();
   const {
     workspaces,
     selectedWorkspace,
@@ -26,6 +31,8 @@ const Index = () => {
     currentAgent,
     handleAgentSelect,
     handleSendMessage,
+    canUseAgent,
+    needsAuth,
   } = useChatData();
 
   const handleGoClick = () => {
@@ -63,16 +70,30 @@ const Index = () => {
 
           {/* Chat Interface */}
           <div className="h-[600px] border border-border/50 rounded-lg overflow-hidden">
-            <ChatInterface
-              agentName={currentAgent.name}
-              agentDescription={currentAgent.description}
-              agentIcon={currentAgent.icon}
-              welcomeMessage={currentAgent.welcomeMessage}
-              placeholder={`Message ${currentAgent.name}...`}
-              isLoading={isLoading}
-              onSendMessage={handleSendMessage}
-              messages={messages}
-            />
+            {!canUseAgent ? (
+              <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+                <Lock className="w-16 h-16 text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Authentication Required</h3>
+                <p className="text-muted-foreground mb-6">
+                  Please sign in to chat with {currentAgent.name}. You can continue using gimmebot without signing in.
+                </p>
+                <Button onClick={() => handleAgentSelect('gimmebot')}>
+                  Switch to gimmebot
+                </Button>
+              </div>
+            ) : (
+              <ChatInterface
+                agentName={currentAgent.name}
+                agentDescription={currentAgent.description}
+                agentIcon={currentAgent.icon}
+                welcomeMessage={currentAgent.welcomeMessage}
+                placeholder={`Message ${currentAgent.name}...`}
+                isLoading={isLoading}
+                onSendMessage={handleSendMessage}
+                messages={messages}
+                disabled={!canUseAgent}
+              />
+            )}
           </div>
         </div>
 

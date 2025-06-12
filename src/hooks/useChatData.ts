@@ -1,10 +1,12 @@
 
 import { useState } from 'react';
 import { useChat } from './useChat';
+import { useAuth } from './useAuth';
 import { agents } from '@/components/agents/AgentSelector';
 
 export function useChatData() {
   const [activeAgent, setActiveAgent] = useState<'gimmebot' | 'creative_concept' | 'neutral_chat'>('gimmebot');
+  const { user } = useAuth();
   
   const { 
     agentConfig, 
@@ -12,8 +14,10 @@ export function useChatData() {
     messages, 
     messagesLoading, 
     sendMessage, 
-    isLoading 
-  } = useChat(activeAgent, false); // Allow guest users
+    isLoading,
+    canUseAgent,
+    needsAuth
+  } = useChat(activeAgent, false);
 
   // Get the base agent info (name, description, icon) from the static config
   const baseAgentInfo = agents.find(agent => agent.id === activeAgent) || agents[0];
@@ -21,6 +25,11 @@ export function useChatData() {
   // Get the dynamic welcome message from the agent config, or fallback to a default
   const getWelcomeMessage = () => {
     if (configLoading) return 'Loading...';
+    
+    // If agent needs auth and user is not logged in, show auth message
+    if (needsAuth && !user) {
+      return 'Please sign in to chat with this agent. You can continue using gimmebot without signing in.';
+    }
     
     // Check if agentConfig and settings exist, and if welcome_message is defined
     if (agentConfig?.settings?.welcome_message) {
@@ -69,5 +78,7 @@ export function useChatData() {
     agentConfig,
     handleAgentSelect,
     handleSendMessage,
+    canUseAgent,
+    needsAuth,
   };
 }

@@ -11,6 +11,10 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
   const queryClient = useQueryClient();
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
+  // Check if this agent requires authentication
+  const needsAuth = agentType !== 'gimmebot';
+  const canUseAgent = !needsAuth || user;
+
   // Fetch agent configuration from the new agent_config_versions table
   const { data: agentConfig, isLoading: configLoading } = useQuery({
     queryKey: ['agent-config', agentType],
@@ -33,6 +37,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
       
       return configData as AgentConfigVersion;
     },
+    enabled: canUseAgent,
   });
 
   // Fetch conversation messages - only if user is authenticated and has a conversation
@@ -53,7 +58,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
       }
       return data as ChatMessage[];
     },
-    enabled: !!currentConversationId && !!user,
+    enabled: !!currentConversationId && !!user && canUseAgent,
   });
 
   // Create conversation mutation - only available for authenticated users
@@ -92,14 +97,14 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     }
   });
 
-  // Send message mutation - works for both authenticated and unauthenticated users
+  // Send message mutation - works for both authenticated and unauthenticated users for gimmebot only
   const sendMessageMutation = useMutation({
     mutationFn: async ({ content, conversationId }: { content: string; conversationId?: string }) => {
       console.log('Sending message:', content);
       
-      // Only require authentication if explicitly set
-      if (requireAuth && !user) {
-        throw new Error('Must be authenticated to send messages');
+      // Check if agent requires authentication
+      if (needsAuth && !user) {
+        throw new Error('Please sign in to chat with this agent');
       }
 
       let activeConversationId = conversationId || currentConversationId;
@@ -176,12 +181,18 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
   const sendMessage = useCallback(async ({ content }: { content: string }) => {
     if (!content.trim()) return;
     
+    // Check if agent requires authentication before proceeding
+    if (needsAuth && !user) {
+      toast.error('Please sign in to chat with this agent');
+      return;
+    }
+    
     try {
       await sendMessageMutation.mutateAsync({ content });
     } catch (error) {
       console.error('Error in sendMessage:', error);
     }
-  }, [sendMessageMutation]);
+  }, [sendMessageMutation, needsAuth, user]);
 
   return {
     agentConfig,
@@ -193,5 +204,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     isLoading: sendMessageMutation.isPending,
     startNewConversation,
     createConversation: createConversationMutation.mutate,
+    canUseAgent, // New property to indicate if the agent can be used
+    needsAuth, // New property to indicate if auth is required
   };
 }
