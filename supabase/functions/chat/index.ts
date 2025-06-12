@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -78,11 +79,17 @@ serve(async (req) => {
       temperature: config.generation?.temperature
     });
 
-    // Build conversation history
+    // Build conversation history and add current message
     const conversationHistory = messages.map(msg => ({
       role: msg.role,
       content: msg.content
     }));
+
+    // Add the current user message to the conversation
+    conversationHistory.push({
+      role: 'user',
+      content: message
+    });
 
     console.log('Conversation history:', conversationHistory.length, 'messages');
 
@@ -155,7 +162,7 @@ function getDefaultPrompt(agentType: string): string {
     case 'creative_concept':
       return 'You are a creative AI assistant specialized in brainstorming and developing creative concepts. Help users generate innovative ideas and creative solutions.';
     case 'neutral_chat':
-      return 'You are a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions.';
+      return 'You are Jack, a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions.';
     default:
       return 'You are a helpful AI assistant.';
   }
