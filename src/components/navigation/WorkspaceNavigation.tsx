@@ -61,7 +61,7 @@ export function WorkspaceNavigation({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="px-4 py-2 border-b-2 border-primary text-foreground font-medium flex items-center gap-2">
-                Workspace: {selectedWorkspace?.name || 'Select Workspace'}
+                Workspace: {selectedWorkspace?.name || 'Select'}
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -91,7 +91,7 @@ export function WorkspaceNavigation({
                 className="px-4 py-2 text-muted-foreground font-medium flex items-center gap-2"
                 disabled={!selectedWorkspace}
               >
-                Projects: {selectedProject?.name || 'Select Project'}
+                Projects: {selectedProject?.name || 'Select'}
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -106,7 +106,11 @@ export function WorkspaceNavigation({
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onAddProject} className="cursor-pointer flex items-center gap-2" disabled={!selectedWorkspace}>
+              <DropdownMenuItem 
+                onClick={onAddProject} 
+                className="cursor-pointer flex items-center gap-2" 
+                disabled={!selectedWorkspace}
+              >
                 <Plus className="h-4 w-4" />
                 Add Project
               </DropdownMenuItem>
@@ -121,7 +125,7 @@ export function WorkspaceNavigation({
                 className="px-4 py-2 text-muted-foreground font-medium flex items-center gap-2"
                 disabled={!selectedProject}
               >
-                Brand Vault: {selectedBrandVault?.name || 'Select Brand Vault'}
+                Brand Vault: {selectedBrandVault?.name || 'Select'}
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -136,7 +140,11 @@ export function WorkspaceNavigation({
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onAddBrandVault} className="cursor-pointer flex items-center gap-2" disabled={!selectedProject}>
+              <DropdownMenuItem 
+                onClick={onAddBrandVault} 
+                className="cursor-pointer flex items-center gap-2" 
+                disabled={!selectedProject}
+              >
                 <Plus className="h-4 w-4" />
                 Add Brand Vault
               </DropdownMenuItem>
