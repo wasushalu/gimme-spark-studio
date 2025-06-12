@@ -27,7 +27,7 @@ export interface WorkspaceMembership {
 
 export interface AgentConfiguration {
   id: string;
-  agent_type: 'gimmebot' | 'creative_concept' | 'neutral_chat';
+  agent_type: 'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio';
   name: string;
   description?: string;
   system_prompt: string;
@@ -114,7 +114,7 @@ export interface ChatConversation {
   id: string;
   workspace_id?: string;
   user_id: string;
-  agent_type: 'gimmebot' | 'creative_concept' | 'neutral_chat';
+  agent_type: 'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio';
   title?: string;
   created_at: string;
   updated_at: string;
