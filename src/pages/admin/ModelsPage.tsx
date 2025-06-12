@@ -3,11 +3,12 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Plus, Edit, Trash2, Search, RefreshCw } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Plus, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import ModelCard from '@/components/admin/ModelCard';
+import ModelSearch from '@/components/admin/ModelSearch';
+import { filterModels } from '@/utils/modelUtils';
 
 interface Model {
   id: string;
@@ -69,35 +70,7 @@ export default function ModelsPage() {
     }
   };
 
-  const getModalityColor = (modality: string) => {
-    switch (modality) {
-      case 'text': return 'bg-blue-100 text-blue-800';
-      case 'image': return 'bg-green-100 text-green-800';
-      case 'audio': return 'bg-purple-100 text-purple-800';
-      case 'video': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getProviderColor = (provider: string) => {
-    switch (provider.toLowerCase()) {
-      case 'openai': return 'bg-emerald-100 text-emerald-800';
-      case 'anthropic': return 'bg-orange-100 text-orange-800';
-      case 'google': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Filter models based on search term
-  const filteredModels = models?.filter(model => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      model.model_name.toLowerCase().includes(searchLower) ||
-      model.provider.toLowerCase().includes(searchLower) ||
-      model.modality.toLowerCase().includes(searchLower)
-    );
-  }) || [];
+  const filteredModels = filterModels(models || [], searchTerm);
 
   console.log('Filtered models:', filteredModels);
   console.log('Search term:', searchTerm);
@@ -164,69 +137,15 @@ export default function ModelsPage() {
         </div>
       </div>
 
-      <div className="mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            placeholder="Search models..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
+      <ModelSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
 
       <div className="grid gap-4">
         {filteredModels.map((model) => (
-          <Card key={model.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-lg font-medium">{model.model_name}</CardTitle>
-              <div className="flex items-center space-x-2">
-                <Badge className={getProviderColor(model.provider)}>
-                  {model.provider}
-                </Badge>
-                <Badge className={getModalityColor(model.modality)}>
-                  {model.modality}
-                </Badge>
-                <Badge variant={model.enabled ? 'default' : 'secondary'}>
-                  {model.enabled ? 'Enabled' : 'Disabled'}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">
-                    Provider: <span className="font-medium">{model.provider}</span>
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Added: {new Date(model.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleModelStatus(model.id, model.enabled)}
-                  >
-                    {model.enabled ? 'Disable' : 'Enable'}
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ModelCard 
+            key={model.id} 
+            model={model} 
+            onToggleStatus={toggleModelStatus}
+          />
         ))}
       </div>
 
