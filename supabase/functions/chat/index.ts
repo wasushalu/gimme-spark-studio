@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -14,19 +13,16 @@ serve(async (req) => {
   }
 
   try {
-    const { conversationId, message, agentType, agentConfig } = await req.json();
+    const { conversationId, message, agentType, agentConfig, isGuest } = await req.json();
     
     console.log('Chat function called with:', { 
       conversationId, 
       agentType, 
       hasAgentConfig: !!agentConfig,
       agentConfigKeys: agentConfig ? Object.keys(agentConfig) : [],
-      messageLength: message?.length 
+      messageLength: message?.length,
+      isGuest: !!isGuest
     });
-
-    if (!conversationId) {
-      throw new Error('Conversation ID is required');
-    }
 
     if (!message) {
       throw new Error('Message is required');
@@ -37,19 +33,25 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get conversation messages for context
-    const { data: messages, error: messagesError } = await supabaseClient
-      .from('chat_messages')
-      .select('*')
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+    // Get conversation messages for context (only for authenticated users with conversations)
+    let messages = [];
+    if (conversationId && !isGuest) {
+      const { data: conversationMessages, error: messagesError } = await supabaseClient
+        .from('chat_messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
 
-    if (messagesError) {
-      console.error('Error fetching messages:', messagesError);
-      throw messagesError;
+      if (messagesError) {
+        console.error('Error fetching messages:', messagesError);
+        throw messagesError;
+      }
+
+      messages = conversationMessages;
+      console.log(`Found ${messages.length} messages in conversation`);
+    } else {
+      console.log('Guest user or no conversation - starting fresh conversation');
     }
-
-    console.log(`Found ${messages.length} messages in conversation`);
 
     // Use agent configuration if available, otherwise fallback to basic defaults
     let config;
@@ -105,26 +107,30 @@ serve(async (req) => {
 
     console.log('AI response received, length:', aiResponse?.length);
 
-    // Save AI response to database
-    const { error: saveError } = await supabaseClient
-      .from('chat_messages')
-      .insert({
-        conversation_id: conversationId,
-        role: 'assistant',
-        content: aiResponse,
-        metadata: {
-          model: textModel?.model || 'gpt-4o-mini',
-          provider: textModel?.provider || 'openai',
-          temperature: config.generation?.temperature || 0.7
-        }
-      });
+    // Save AI response to database only for authenticated users with conversations
+    if (conversationId && !isGuest) {
+      const { error: saveError } = await supabaseClient
+        .from('chat_messages')
+        .insert({
+          conversation_id: conversationId,
+          role: 'assistant',
+          content: aiResponse,
+          metadata: {
+            model: textModel?.model || 'gpt-4o-mini',
+            provider: textModel?.provider || 'openai',
+            temperature: config.generation?.temperature || 0.7
+          }
+        });
 
-    if (saveError) {
-      console.error('Error saving AI response:', saveError);
-      throw saveError;
+      if (saveError) {
+        console.error('Error saving AI response:', saveError);
+        throw saveError;
+      }
+
+      console.log('AI response saved successfully');
+    } else {
+      console.log('Guest user - AI response not saved to database');
     }
-
-    console.log('AI response saved successfully');
 
     return new Response(JSON.stringify({ response: aiResponse }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

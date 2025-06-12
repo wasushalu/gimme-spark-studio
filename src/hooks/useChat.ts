@@ -6,7 +6,7 @@ import { ChatConversation, ChatMessage, AgentConfigVersion } from '@/types/datab
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
-export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat') {
+export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat', requireAuth = false) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
@@ -35,11 +35,11 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     },
   });
 
-  // Fetch conversation messages
+  // Fetch conversation messages - only if user is authenticated and has a conversation
   const { data: messages = [], isLoading: messagesLoading } = useQuery({
     queryKey: ['chat-messages', currentConversationId],
     queryFn: async () => {
-      if (!currentConversationId) return [];
+      if (!currentConversationId || !user) return [];
 
       const { data, error } = await supabase
         .from('chat_messages')
@@ -53,10 +53,10 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
       }
       return data as ChatMessage[];
     },
-    enabled: !!currentConversationId,
+    enabled: !!currentConversationId && !!user,
   });
 
-  // Create conversation mutation
+  // Create conversation mutation - only available for authenticated users
   const createConversationMutation = useMutation({
     mutationFn: async ({ title, workspaceId }: { title?: string; workspaceId?: string }) => {
       if (!user) throw new Error('User must be authenticated');
@@ -92,19 +92,20 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     }
   });
 
-  // Send message mutation
+  // Send message mutation - works for both authenticated and unauthenticated users
   const sendMessageMutation = useMutation({
     mutationFn: async ({ content, conversationId }: { content: string; conversationId?: string }) => {
       console.log('Sending message:', content);
       
-      if (!user) {
+      // Only require authentication if explicitly set
+      if (requireAuth && !user) {
         throw new Error('Must be authenticated to send messages');
       }
 
       let activeConversationId = conversationId || currentConversationId;
 
-      // Create conversation if none exists
-      if (!activeConversationId) {
+      // Create conversation if none exists and user is authenticated
+      if (!activeConversationId && user) {
         console.log('No conversation exists, creating new one');
         const conversation = await createConversationMutation.mutateAsync({});
         activeConversationId = conversation.id;
@@ -112,23 +113,27 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
 
       console.log('Using conversation ID:', activeConversationId);
 
-      // Add user message
-      const { data: userMessage, error: userError } = await supabase
-        .from('chat_messages')
-        .insert({
-          conversation_id: activeConversationId,
-          role: 'user',
-          content,
-        })
-        .select()
-        .single();
+      // For authenticated users, save user message to database
+      let userMessage = null;
+      if (user && activeConversationId) {
+        const { data: savedMessage, error: userError } = await supabase
+          .from('chat_messages')
+          .insert({
+            conversation_id: activeConversationId,
+            role: 'user',
+            content,
+          })
+          .select()
+          .single();
 
-      if (userError) {
-        console.error('Error saving user message:', userError);
-        throw userError;
+        if (userError) {
+          console.error('Error saving user message:', userError);
+          throw userError;
+        }
+
+        console.log('User message saved:', savedMessage);
+        userMessage = savedMessage;
       }
-
-      console.log('User message saved:', userMessage);
 
       // Prepare agent config for edge function
       const configToSend = agentConfig?.settings || null;
@@ -140,6 +145,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
           message: content,
           agentType,
           agentConfig: configToSend,
+          isGuest: !user, // Flag for guest users
         },
       });
 

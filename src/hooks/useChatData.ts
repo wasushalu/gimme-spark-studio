@@ -13,7 +13,7 @@ export function useChatData() {
     messagesLoading, 
     sendMessage, 
     isLoading 
-  } = useChat(activeAgent);
+  } = useChat(activeAgent, false); // Allow guest users
 
   // Get the base agent info (name, description, icon) from the static config
   const baseAgentInfo = agents.find(agent => agent.id === activeAgent) || agents[0];
