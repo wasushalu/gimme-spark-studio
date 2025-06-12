@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, Bot, Lightbulb, MessageCircle, ArrowLeft } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useChat } from '@/hooks/useChat';
 
 interface Message {
   id: string;
@@ -16,7 +17,6 @@ interface Agent {
   id: string;
   name: string;
   icon: typeof Bot;
-  welcomeMessage: string;
 }
 
 const agents: Agent[] = [
@@ -24,19 +24,16 @@ const agents: Agent[] = [
     id: 'gimmebot',
     name: 'gimmebot',
     icon: Bot,
-    welcomeMessage: 'Hello! I\'m gimmebot, your AI marketing assistant. How can I help you create amazing marketing content today?'
   },
   {
     id: 'creative_concept',
     name: 'Creative Concept',
     icon: Lightbulb,
-    welcomeMessage: 'Hi there! I\'m here to help you brainstorm creative concepts and ideas. What are you working on?'
   },
   {
     id: 'neutral_chat',
     name: 'General Chat',
     icon: MessageCircle,
-    welcomeMessage: 'Hello! I\'m here for open conversation. What would you like to chat about?'
   }
 ];
 
@@ -46,49 +43,42 @@ export default function ChatPage() {
   const agentId = searchParams.get('agent') || 'gimmebot';
   const currentAgent = agents.find(a => a.id === agentId) || agents[0];
   
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      content: currentAgent.welcomeMessage,
-      role: 'assistant',
-      timestamp: new Date()
-    }
-  ]);
+  const { 
+    agentConfig, 
+    configLoading, 
+    messages, 
+    sendMessage, 
+    isLoading 
+  } = useChat(agentId as 'gimmebot' | 'creative_concept' | 'neutral_chat');
+  
   const [inputValue, setInputValue] = useState('');
 
-  // Update welcome message when agent changes
-  useEffect(() => {
-    setMessages([{
-      id: '1',
-      content: currentAgent.welcomeMessage,
-      role: 'assistant',
-      timestamp: new Date()
-    }]);
-  }, [currentAgent.welcomeMessage]);
+  // Get welcome message from config or fallback
+  const getWelcomeMessage = () => {
+    if (configLoading) return 'Loading...';
+    
+    if (agentConfig?.settings?.welcome_message) {
+      return agentConfig.settings.welcome_message;
+    }
+    
+    // Fallback welcome messages based on agent type
+    switch (agentId) {
+      case 'gimmebot':
+        return 'Hello! I\'m gimmebot, your AI marketing assistant. How can I help you create amazing marketing content today?';
+      case 'creative_concept':
+        return 'Hi there! I\'m here to help you brainstorm creative concepts and ideas. What are you working on?';
+      case 'neutral_chat':
+        return 'Hello! I\'m here for open conversation. What would you like to chat about?';
+      default:
+        return 'Hello! How can I help you today?';
+    }
+  };
 
   const handleSend = () => {
     if (!inputValue.trim()) return;
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      content: inputValue,
-      role: 'user',
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, newMessage]);
+    sendMessage({ content: inputValue });
     setInputValue('');
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        content: `Thank you for your message. I'm ${currentAgent.name} and I'll help you with that.`,
-        role: 'assistant',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiResponse]);
-    }, 1000);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -126,6 +116,17 @@ export default function ChatPage() {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+        {/* Welcome message */}
+        {messages.length === 0 && (
+          <div className="flex justify-start">
+            <div className="max-w-[70%] px-4 py-3 rounded-2xl bg-muted mr-12">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                {getWelcomeMessage()}
+              </p>
+            </div>
+          </div>
+        )}
+        
         {messages.map((message) => (
           <div
             key={message.id}
@@ -144,6 +145,16 @@ export default function ChatPage() {
             </div>
           </div>
         ))}
+        
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="max-w-[70%] px-4 py-3 rounded-2xl bg-muted mr-12">
+              <p className="text-sm leading-relaxed animate-pulse">
+                Thinking...
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Input Area */}
@@ -157,10 +168,11 @@ export default function ChatPage() {
               placeholder={`Message ${currentAgent.name}...`}
               className="pr-12 py-3 text-sm rounded-xl border-input/50 focus:border-primary/50 resize-none"
               style={{ minHeight: '44px' }}
+              disabled={isLoading}
             />
             <Button
               onClick={handleSend}
-              disabled={!inputValue.trim()}
+              disabled={!inputValue.trim() || isLoading}
               size="sm"
               className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 rounded-lg"
             >

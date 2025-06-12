@@ -8,7 +8,6 @@ interface Agent {
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   primary: boolean;
-  welcomeMessage: string;
 }
 
 interface AgentSelectorProps {
@@ -23,7 +22,6 @@ const agents: Agent[] = [
     description: 'AI Marketing Assistant',
     icon: Bot,
     primary: true,
-    welcomeMessage: 'Hello! I\'m gimmebot, your AI marketing assistant. How can I help you create amazing marketing content today?'
   },
   {
     id: 'creative_concept',
@@ -31,7 +29,6 @@ const agents: Agent[] = [
     description: 'Creative Ideas Generator',
     icon: Palette,
     primary: false,
-    welcomeMessage: 'Hi there! I\'m Studio, your creative ideas generator. What creative project can I help you brainstorm today?'
   },
   {
     id: 'neutral_chat',
@@ -39,7 +36,6 @@ const agents: Agent[] = [
     description: 'Open Conversation',
     icon: MessageCircle,
     primary: false,
-    welcomeMessage: 'Hello! I\'m here for open conversation. What would you like to chat about?'
   },
 ];
 

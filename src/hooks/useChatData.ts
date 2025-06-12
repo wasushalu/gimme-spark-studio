@@ -1,60 +1,64 @@
 
-import { useState } from "react";
-import { agents, Agent } from "@/components/agents/AgentSelector";
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
+import { useState } from 'react';
+import { useChat } from './useChat';
+import { agents } from '@/components/agents/AgentSelector';
 
 export function useChatData() {
-  const [activeAgent, setActiveAgent] = useState<string>('gimmebot');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [activeAgent, setActiveAgent] = useState<'gimmebot' | 'creative_concept' | 'neutral_chat'>('gimmebot');
+  
+  const { 
+    agentConfig, 
+    configLoading, 
+    messages, 
+    messagesLoading, 
+    sendMessage, 
+    isLoading 
+  } = useChat(activeAgent);
 
-  const currentAgent = agents.find(agent => agent.id === activeAgent) || agents[0];
+  // Get the base agent info (name, description, icon) from the static config
+  const baseAgentInfo = agents.find(agent => agent.id === activeAgent) || agents[0];
+
+  // Get the dynamic welcome message from the agent config, or fallback to a default
+  const getWelcomeMessage = () => {
+    if (configLoading) return 'Loading...';
+    
+    if (agentConfig?.settings?.welcome_message) {
+      return agentConfig.settings.welcome_message;
+    }
+    
+    // Fallback welcome messages based on agent type
+    switch (activeAgent) {
+      case 'gimmebot':
+        return 'Hello! I\'m gimmebot, your AI marketing assistant. How can I help you create amazing marketing content today?';
+      case 'creative_concept':
+        return 'Hi there! I\'m Studio, your creative ideas generator. What creative project can I help you brainstorm today?';
+      case 'neutral_chat':
+        return 'Hello! I\'m here for open conversation. What would you like to chat about?';
+      default:
+        return 'Hello! How can I help you today?';
+    }
+  };
+
+  const currentAgent = {
+    ...baseAgentInfo,
+    welcomeMessage: getWelcomeMessage(),
+  };
 
   const handleAgentSelect = (agentId: string) => {
-    setActiveAgent(agentId);
-    setMessages([]); // Clear messages when switching agents
+    setActiveAgent(agentId as 'gimmebot' | 'creative_concept' | 'neutral_chat');
   };
 
   const handleSendMessage = (message: string) => {
-    setIsLoading(true);
-    
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: message,
-      timestamp: new Date()
-    };
-    
-    setMessages(prev => [...prev, userMessage]);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `Thank you for your message! I'm ${currentAgent.name} and I'll help you with that.`,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiResponse]);
-      setIsLoading(false);
-    }, 1500);
+    sendMessage({ content: message });
   };
 
   return {
     activeAgent,
     messages,
-    isLoading,
+    isLoading: isLoading || messagesLoading || configLoading,
     currentAgent,
+    agentConfig,
     handleAgentSelect,
     handleSendMessage,
   };
 }
-
-export type { Message };

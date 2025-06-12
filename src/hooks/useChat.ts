@@ -11,12 +11,11 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
   // Fetch agent configuration from the new agent_config_versions table
-  const { data: agentConfig } = useQuery({
+  const { data: agentConfig, isLoading: configLoading } = useQuery({
     queryKey: ['agent-config', agentType],
     queryFn: async () => {
       console.log('useChat: Fetching config for agent type:', agentType);
       
-      // First try to get from agent_config_versions table
       const { data: configData, error: configError } = await supabase
         .from('agent_config_versions')
         .select('*')
@@ -26,6 +25,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
 
       if (configError) {
         console.error('useChat: Error fetching agent config:', configError);
+        throw configError;
       }
       
       console.log('useChat: Agent config result:', configData);
@@ -126,6 +126,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
 
   return {
     agentConfig,
+    configLoading,
     messages,
     messagesLoading,
     currentConversationId,

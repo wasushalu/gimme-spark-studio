@@ -26,14 +26,11 @@ interface ChatInterfaceProps {
 }
 
 const loadingMessages = [
-  "Cooking up a genius idea...",
-  "Mixing creativity potions...",
-  "Consulting the marketing gods...",
-  "Brewing the perfect campaign...",
-  "Channeling creative energy...",
-  "Crafting marketing magic...",
-  "Summoning brilliant concepts...",
-  "Weaving words of wisdom..."
+  "Thinking...",
+  "Processing...",
+  "Generating response...",
+  "Almost ready...",
+  "Working on it...",
 ];
 
 export function ChatInterface({
