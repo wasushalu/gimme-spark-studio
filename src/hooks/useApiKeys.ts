@@ -1,4 +1,5 @@
-import { useState } from 'react';
+
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -35,6 +36,7 @@ export function useApiKeys() {
         throw new Error(data.error || 'Failed to save API key');
       }
 
+      // Update the status immediately to show it's saved
       setKeyStatuses(prev => ({ ...prev, [keyName]: true }));
       
       toast({
@@ -56,7 +58,7 @@ export function useApiKeys() {
     }
   };
 
-  const checkApiKeyStatus = async (keyName: string) => {
+  const checkApiKeyStatus = useCallback(async (keyName: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('manage-secrets', {
         body: {
@@ -67,15 +69,19 @@ export function useApiKeys() {
 
       if (error) {
         console.error('Error checking API key status:', error);
+        setKeyStatuses(prev => ({ ...prev, [keyName]: false }));
         return false;
       }
 
-      return data.exists || false;
+      const exists = data.exists || false;
+      setKeyStatuses(prev => ({ ...prev, [keyName]: exists }));
+      return exists;
     } catch (error) {
       console.error('Error checking API key status:', error);
+      setKeyStatuses(prev => ({ ...prev, [keyName]: false }));
       return false;
     }
-  };
+  }, []);
 
   const saveAllKeys = async (apiKeys: Record<string, string>) => {
     setLoading(true);
@@ -117,6 +123,7 @@ export function useApiKeys() {
     saveAllKeys,
     checkApiKeyStatus,
     loading,
-    keyStatuses
+    keyStatuses,
+    setKeyStatuses
   };
 }

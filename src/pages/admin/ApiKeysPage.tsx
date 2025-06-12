@@ -16,8 +16,7 @@ export default function ApiKeysPage() {
   useEffect(() => {
     const checkAllKeyStatuses = async () => {
       for (const keyConfig of API_KEYS) {
-        const exists = await checkApiKeyStatus(keyConfig.name);
-        // Update keyStatuses is handled by the hook
+        await checkApiKeyStatus(keyConfig.name);
       }
     };
     checkAllKeyStatuses();
@@ -41,13 +40,23 @@ export default function ApiKeysPage() {
     const value = apiKeys[keyName];
     if (!value?.trim()) return;
     
-    await saveApiKey(keyName, value);
-    // Clear the input after successful save
-    setApiKeys(prev => ({ ...prev, [keyName]: '' }));
+    const success = await saveApiKey(keyName, value);
+    if (success) {
+      // Only clear the input after successful save
+      setApiKeys(prev => ({ ...prev, [keyName]: '' }));
+    }
   };
 
   const handleSaveAllKeys = async () => {
-    await saveAllKeys(apiKeys);
+    const keysToSave = Object.fromEntries(
+      Object.entries(apiKeys).filter(([_, value]) => value.trim())
+    );
+    
+    if (Object.keys(keysToSave).length === 0) {
+      return;
+    }
+
+    await saveAllKeys(keysToSave);
     // Clear all inputs after successful save
     setApiKeys({});
   };

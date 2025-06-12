@@ -16,32 +16,34 @@ serve(async (req) => {
   try {
     const { action, secretName, secretValue } = await req.json();
     
-    // Get the service role key from environment
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    
-    if (!serviceRoleKey || !supabaseUrl) {
-      throw new Error('Missing Supabase configuration');
-    }
+    console.log(`Action: ${action}, Secret: ${secretName}`);
 
     if (action === 'set') {
-      // Set a secret using Supabase Management API
-      const response = await fetch(`${supabaseUrl}/rest/v1/rpc/set_secret`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${serviceRoleKey}`,
-          'Content-Type': 'application/json',
-          'apikey': serviceRoleKey,
-        },
-        body: JSON.stringify({
-          name: secretName,
-          value: secretValue
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to set secret: ${response.statusText}`);
+      // For Supabase secrets, we need to use the vault schema
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      
+      if (!serviceRoleKey || !supabaseUrl) {
+        throw new Error('Missing Supabase configuration');
       }
+
+      // Create Supabase client with service role
+      const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+      // Use the vault.secrets table to store secrets
+      const { error } = await supabase
+        .from('vault.secrets')
+        .upsert({
+          name: secretName,
+          secret: secretValue
+        });
+
+      if (error) {
+        console.error('Error storing secret:', error);
+        throw new Error(`Failed to store secret: ${error.message}`);
+      }
+
+      console.log(`Successfully stored secret: ${secretName}`);
 
       return new Response(JSON.stringify({ 
         success: true, 
@@ -52,8 +54,11 @@ serve(async (req) => {
     }
 
     if (action === 'get') {
-      // For security, we don't return the actual values, just whether they exist
+      // Check if secret exists by trying to read it from environment
+      // In production, secrets are available as environment variables
       const secretExists = Deno.env.get(secretName) !== undefined;
+      
+      console.log(`Checking secret ${secretName}: exists = ${secretExists}`);
       
       return new Response(JSON.stringify({ 
         exists: secretExists,
