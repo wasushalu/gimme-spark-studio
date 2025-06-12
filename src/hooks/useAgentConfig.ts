@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,47 +32,67 @@ export function useAgentConfig(agent: Agent | null) {
     enabled: !!agent
   });
 
-  // Fetch available models
+  // Fetch available models with enhanced debugging
   const { data: models = [], isLoading: modelsLoading, error: modelsError } = useQuery({
     queryKey: ['models-for-config'],
     queryFn: async () => {
-      console.log('useAgentConfig: Fetching models for agent configuration...');
-      const { data, error } = await supabase
-        .from('model_catalog')
-        .select('*')
-        .eq('enabled', true)
-        .order('provider', { ascending: true })
-        .order('model_name', { ascending: true });
+      console.log('useAgentConfig: Starting to fetch models...');
       
-      console.log('useAgentConfig: Models query result:', { 
-        data, 
-        error, 
-        count: data?.length,
-        textModels: data?.filter(m => m.modality === 'text').length || 0,
-        imageModels: data?.filter(m => m.modality === 'image').length || 0,
-        audioModels: data?.filter(m => m.modality === 'audio').length || 0,
-        videoModels: data?.filter(m => m.modality === 'video').length || 0,
-        allModalities: [...new Set(data?.map(m => m.modality) || [])],
-        allProviders: [...new Set(data?.map(m => m.provider) || [])]
-      });
-      
-      if (error) {
-        console.error('useAgentConfig: Error fetching models for config:', error);
+      try {
+        const { data, error } = await supabase
+          .from('model_catalog')
+          .select('*')
+          .eq('enabled', true)
+          .order('provider', { ascending: true })
+          .order('model_name', { ascending: true });
+        
+        if (error) {
+          console.error('useAgentConfig: Database error fetching models:', error);
+          throw error;
+        }
+
+        console.log('useAgentConfig: Raw models from database:', data);
+        console.log('useAgentConfig: Models breakdown:', {
+          total: data?.length || 0,
+          byModality: {
+            text: data?.filter(m => m.modality === 'text').length || 0,
+            image: data?.filter(m => m.modality === 'image').length || 0,
+            audio: data?.filter(m => m.modality === 'audio').length || 0,
+            video: data?.filter(m => m.modality === 'video').length || 0,
+          },
+          byProvider: data?.reduce((acc, model) => {
+            acc[model.provider] = (acc[model.provider] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>) || {},
+          enabledCount: data?.filter(m => m.enabled).length || 0,
+          allProviders: [...new Set(data?.map(m => m.provider) || [])],
+          allModalities: [...new Set(data?.map(m => m.modality) || [])]
+        });
+        
+        return data as ModelCatalog[];
+      } catch (error) {
+        console.error('useAgentConfig: Exception while fetching models:', error);
         throw error;
       }
-      
-      return data as ModelCatalog[];
     }
   });
 
   // Create a minimal default config only when no config exists
   const createDefaultConfig = () => {
+    console.log('useAgentConfig: Creating default config with models:', {
+      totalModels: models.length,
+      textModels: models.filter(m => m.modality === 'text').length,
+      imageModels: models.filter(m => m.modality === 'image').length,
+      audioModels: models.filter(m => m.modality === 'audio').length,
+      videoModels: models.filter(m => m.modality === 'video').length,
+    });
+
     const textModels = models.filter(m => m.modality === 'text');
     const imageModels = models.filter(m => m.modality === 'image');
     const audioModels = models.filter(m => m.modality === 'audio');
     const videoModels = models.filter(m => m.modality === 'video');
 
-    return {
+    const defaultConfig = {
       model: {
         text: { 
           provider: textModels[0]?.provider || 'openai', 
@@ -118,6 +137,9 @@ export function useAgentConfig(agent: Agent | null) {
         default_child: null
       }
     };
+
+    console.log('useAgentConfig: Created default config:', defaultConfig);
+    return defaultConfig;
   };
 
   // Initialize config state properly
@@ -192,25 +214,34 @@ export function useAgentConfig(agent: Agent | null) {
 
   const getModelsByModality = (modality: string) => {
     const filtered = models.filter(model => model.modality === modality);
-    console.log(`useAgentConfig: getModelsByModality(${modality}) returning ${filtered.length} models:`, filtered.map(m => m.model_name));
+    console.log(`useAgentConfig: getModelsByModality(${modality}) returning ${filtered.length} models:`, 
+      filtered.map(m => ({ name: m.model_name, provider: m.provider, enabled: m.enabled }))
+    );
     return filtered;
   };
 
+  // Enhanced debug logging
   console.log('useAgentConfig: Hook state summary:', {
     agentId: agent?.agent_id,
+    modelsLoading,
+    modelsError: modelsError?.message,
     totalModels: models.length,
-    textModels: getModelsByModality('text').length,
-    imageModels: getModelsByModality('image').length,
-    audioModels: getModelsByModality('audio').length,
-    videoModels: getModelsByModality('video').length,
+    modelsByModality: {
+      text: getModelsByModality('text').length,
+      image: getModelsByModality('image').length,
+      audio: getModelsByModality('audio').length,
+      video: getModelsByModality('video').length,
+    },
     configLoaded: !!config,
     promptLength: config?.prompt?.length || 0,
-    currentTextModel: config?.model?.text?.model,
-    currentImageModel: config?.model?.image?.model,
-    currentAudioModel: config?.model?.audio?.model,
-    currentVideoModel: config?.model?.video?.model,
-    modelsLoading,
-    modelsError: modelsError?.message
+    currentSelections: {
+      text: config?.model?.text?.model,
+      image: config?.model?.image?.model,
+      audio: config?.model?.audio?.model,
+      video: config?.model?.video?.model,
+    },
+    hasCurrentConfig: !!currentConfig,
+    rawModelsPreview: models.slice(0, 3).map(m => ({ name: m.model_name, modality: m.modality, provider: m.provider }))
   });
 
   return {

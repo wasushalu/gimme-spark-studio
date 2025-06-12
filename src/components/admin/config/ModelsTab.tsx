@@ -33,10 +33,7 @@ export default function ModelsTab({ config, setConfig, models, getModelsByModali
     currentImageModel,
     currentAudioModel,
     currentVideoModel,
-    textModelsList: textModels.map(m => m.model_name),
-    imageModelsList: imageModels.map(m => m.model_name),
-    audioModelsList: audioModels.map(m => m.model_name),
-    videoModelsList: videoModels.map(m => m.model_name)
+    allModels: models.map(m => ({ id: m.id, name: m.model_name, modality: m.modality, provider: m.provider }))
   });
 
   const updateTextModel = (modelName: string) => {
@@ -219,33 +216,77 @@ export default function ModelsTab({ config, setConfig, models, getModelsByModali
         </div>
       </div>
 
-      {/* Debug information */}
+      {/* Enhanced debug information */}
       <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-        <h4 className="text-sm font-medium text-blue-900 mb-2">Debug Information</h4>
+        <h4 className="text-sm font-medium text-blue-900 mb-2">Enhanced Debug Information</h4>
         <div className="text-xs text-blue-800 space-y-1">
-          <p>Total models in catalog: {models.length}</p>
-          <p>Text models: {textModels.length} ({textModels.map(m => m.model_name).join(', ')})</p>
-          <p>Image models: {imageModels.length} ({imageModels.map(m => m.model_name).join(', ')})</p>
-          <p>Audio models: {audioModels.length} ({audioModels.map(m => m.model_name).join(', ')})</p>
-          <p>Video models: {videoModels.length} ({videoModels.map(m => m.model_name).join(', ')})</p>
-          <p>Current selections: Text={currentTextModel}, Image={currentImageModel}, Audio={currentAudioModel}, Video={currentVideoModel}</p>
+          <p><strong>Total models loaded:</strong> {models.length}</p>
+          <div className="grid grid-cols-2 gap-4 mt-2">
+            <div>
+              <p><strong>Text models ({textModels.length}):</strong></p>
+              <ul className="ml-2 list-disc">
+                {textModels.map(m => <li key={m.id}>{m.provider}/{m.model_name}</li>)}
+              </ul>
+            </div>
+            <div>
+              <p><strong>Image models ({imageModels.length}):</strong></p>
+              <ul className="ml-2 list-disc">
+                {imageModels.map(m => <li key={m.id}>{m.provider}/{m.model_name}</li>)}
+              </ul>
+            </div>
+            <div>
+              <p><strong>Audio models ({audioModels.length}):</strong></p>
+              <ul className="ml-2 list-disc">
+                {audioModels.map(m => <li key={m.id}>{m.provider}/{m.model_name}</li>)}
+              </ul>
+            </div>
+            <div>
+              <p><strong>Video models ({videoModels.length}):</strong></p>
+              <ul className="ml-2 list-disc">
+                {videoModels.map(m => <li key={m.id}>{m.provider}/{m.model_name}</li>)}
+              </ul>
+            </div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-blue-200">
+            <p><strong>Current selections:</strong></p>
+            <p>Text: {currentTextModel || 'None'}</p>
+            <p>Image: {currentImageModel || 'None'}</p>
+            <p>Audio: {currentAudioModel || 'None'}</p>
+            <p>Video: {currentVideoModel || 'None'}</p>
+          </div>
         </div>
       </div>
 
-      {/* All models list for verification */}
+      {/* Raw model data display */}
       <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-        <h4 className="text-sm font-medium text-gray-900 mb-2">All Available Models</h4>
+        <h4 className="text-sm font-medium text-gray-900 mb-2">Raw Model Data</h4>
         <div className="text-xs space-y-1 max-h-60 overflow-y-auto">
-          {models.map((model) => (
-            <div key={model.id} className="flex justify-between items-center">
-              <span>{model.provider} - {model.model_name}</span>
-              <span className="text-gray-500 px-2 py-1 bg-white rounded text-xs">
-                {model.modality}
-              </span>
+          {models.length === 0 ? (
+            <p className="text-red-600">⚠️ No models found! Check if models are being loaded properly.</p>
+          ) : (
+            <div className="space-y-1">
+              {models.map((model) => (
+                <div key={model.id} className="flex justify-between items-center bg-white p-2 rounded border">
+                  <span><strong>{model.provider}</strong> - {model.model_name}</span>
+                  <div className="flex gap-2">
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      model.modality === 'text' ? 'bg-blue-100 text-blue-800' :
+                      model.modality === 'image' ? 'bg-green-100 text-green-800' :
+                      model.modality === 'audio' ? 'bg-purple-100 text-purple-800' :
+                      model.modality === 'video' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {model.modality}
+                    </span>
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      model.enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {model.enabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-          {models.length === 0 && (
-            <p className="text-gray-500">No models found in the catalog</p>
           )}
         </div>
       </div>
