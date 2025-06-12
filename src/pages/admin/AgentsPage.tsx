@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,10 +26,13 @@ export default function AgentsPage() {
   const { data: agents, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-agents'],
     queryFn: async () => {
+      console.log('Fetching agents...');
       const { data, error } = await supabase
         .from('agents')
         .select('*')
         .order('created_at', { ascending: false });
+      
+      console.log('Agents query result:', { data, error });
       
       if (error) {
         console.error('Error fetching agents:', error);
@@ -40,9 +44,12 @@ export default function AgentsPage() {
         throw error;
       }
       
+      console.log('Successfully fetched agents:', data);
       return data as Agent[];
     }
   });
+
+  console.log('Current agents state:', { agents, isLoading, error });
 
   const handleDeleteAgent = async (agentId: string) => {
     if (!confirm('Are you sure you want to delete this agent? This will also delete all its configurations.')) {
@@ -97,6 +104,45 @@ export default function AgentsPage() {
     }
   };
 
+  const handleCreateTestAgent = async () => {
+    try {
+      const testAgent = {
+        agent_id: `test-agent-${Date.now()}`,
+        label: 'Test Agent',
+        type: 'root',
+        visibility: 'internal'
+      };
+
+      console.log('Creating test agent:', testAgent);
+      
+      const { data, error } = await supabase
+        .from('agents')
+        .insert(testAgent)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating test agent:', error);
+        throw error;
+      }
+
+      console.log('Test agent created:', data);
+      toast({
+        title: 'Test agent created',
+        description: 'A test agent has been created successfully.',
+      });
+      
+      refetch();
+    } catch (error) {
+      console.error('Error creating test agent:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create test agent. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -132,10 +178,29 @@ export default function AgentsPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Agent Management</h1>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Agent
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleCreateTestAgent}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Test Agent
+          </Button>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Agent
+          </Button>
+        </div>
+      </div>
+
+      {/* Debug Information */}
+      <div className="mb-4 p-4 bg-gray-100 rounded-lg">
+        <h3 className="font-semibold mb-2">Debug Info:</h3>
+        <p>Agents count: {agents?.length || 0}</p>
+        <p>Loading: {isLoading ? 'Yes' : 'No'}</p>
+        <p>Error: {error ? error.message : 'None'}</p>
+        {agents && agents.length > 0 && (
+          <div className="mt-2">
+            <p>Sample agent IDs: {agents.slice(0, 3).map(a => a.agent_id).join(', ')}</p>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4">
@@ -203,11 +268,14 @@ export default function AgentsPage() {
         <div className="text-center py-12">
           <Bot className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No agents found</h3>
-          <p className="text-gray-500 mb-4">The database appears to be empty. Please check if agents have been created.</p>
+          <p className="text-gray-500 mb-4">The database appears to be empty. Try creating a test agent or check the database connection.</p>
           <div className="flex gap-2 justify-center">
             <Button onClick={() => refetch()}>
-              <Plus className="w-4 h-4 mr-2" />
               Refresh
+            </Button>
+            <Button onClick={handleCreateTestAgent}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Test Agent
             </Button>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
