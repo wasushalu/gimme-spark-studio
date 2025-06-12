@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -22,8 +21,9 @@ export function GimmebotPage() {
     startNewConversation,
   } = useChat('gimmebot');
 
-  const handleSendMessage = (content: string) => {
-    sendMessage({ content });
+  const handleSendMessage = async (content: string) => {
+    console.log('GimmebotPage: Sending message:', content);
+    await sendMessage({ content });
   };
 
   const handleSignOut = async () => {
@@ -43,6 +43,10 @@ export function GimmebotPage() {
     content: msg.content,
     timestamp: new Date(msg.created_at),
   }));
+
+  // Get welcome message from config or use fallback
+  const welcomeMessage = agentConfig?.settings?.welcome_message || 
+    "Hello there! 🤔 I'm gimmebot, your friendly marketing guide here at gimmefy.ai. I'm here to help you navigate the world of marketing, answer questions about gimmefy's features, and point you toward exactly what you need. Whether you're exploring content strategies, curious about our platform, or just want some marketing wisdom—I'm all ears! What brings you here today?";
 
   return (
     <div className="h-full flex flex-col lg:flex-row gap-6 p-6">
@@ -147,7 +151,7 @@ export function GimmebotPage() {
             agentDescription="Your marketing guide at gimmefy.ai"
             agentIcon={MessageCircle}
             placeholder="Ask me about marketing, gimmefy features, or how I can help..."
-            welcomeMessage="Hello there! 🤔 I'm gimmebot, your friendly marketing guide here at gimmefy.ai. I'm here to help you navigate the world of marketing, answer questions about gimmefy's features, and point you toward exactly what you need. Whether you're exploring content strategies, curious about our platform, or just want some marketing wisdom—I'm all ears! What brings you here today?"
+            welcomeMessage={welcomeMessage}
             messages={interfaceMessages}
             isLoading={isLoading || messagesLoading}
             onSendMessage={handleSendMessage}

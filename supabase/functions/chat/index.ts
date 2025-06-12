@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -15,7 +16,20 @@ serve(async (req) => {
   try {
     const { conversationId, message, agentType, agentConfig } = await req.json();
     
-    console.log('Chat function called with:', { conversationId, agentType, hasAgentConfig: !!agentConfig });
+    console.log('Chat function called with:', { 
+      conversationId, 
+      agentType, 
+      hasAgentConfig: !!agentConfig,
+      messageLength: message?.length 
+    });
+
+    if (!conversationId) {
+      throw new Error('Conversation ID is required');
+    }
+
+    if (!message) {
+      throw new Error('Message is required');
+    }
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -30,8 +44,11 @@ serve(async (req) => {
       .order('created_at', { ascending: true });
 
     if (messagesError) {
+      console.error('Error fetching messages:', messagesError);
       throw messagesError;
     }
+
+    console.log(`Found ${messages.length} messages in conversation`);
 
     // Use agent configuration if available, otherwise fallback to very basic defaults
     let config;
@@ -53,21 +70,28 @@ serve(async (req) => {
       content: msg.content
     }));
 
+    console.log('Conversation history:', conversationHistory.length, 'messages');
+
     // Determine which AI service to use based on the configured model
     const textModel = config.model?.text;
     let aiResponse;
 
     if (textModel?.provider === 'openai') {
+      console.log('Calling OpenAI with model:', textModel.model);
       aiResponse = await callOpenAI(textModel.model, conversationHistory, config);
     } else if (textModel?.provider === 'anthropic') {
+      console.log('Calling Anthropic with model:', textModel.model);
       aiResponse = await callAnthropic(textModel.model, conversationHistory, config);
     } else if (textModel?.provider === 'perplexity') {
+      console.log('Calling Perplexity with model:', textModel.model);
       aiResponse = await callPerplexity(textModel.model, conversationHistory, config);
     } else {
       // Default to OpenAI if provider not recognized
       console.log('Unknown provider, defaulting to OpenAI');
       aiResponse = await callOpenAI('gpt-4o-mini', conversationHistory, config);
     }
+
+    console.log('AI response received, length:', aiResponse?.length);
 
     // Save AI response to database
     const { error: saveError } = await supabaseClient
@@ -84,8 +108,11 @@ serve(async (req) => {
       });
 
     if (saveError) {
+      console.error('Error saving AI response:', saveError);
       throw saveError;
     }
+
+    console.log('AI response saved successfully');
 
     return new Response(JSON.stringify({ response: aiResponse }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -110,7 +137,7 @@ async function callOpenAI(model: string, messages: any[], config: any) {
   const temperature = config.generation?.temperature || 0.7;
   const maxTokens = config.generation?.max_response_tokens || 4000;
 
-  console.log('OpenAI call with system prompt:', systemPrompt.substring(0, 100) + '...');
+  console.log('OpenAI call with system prompt length:', systemPrompt.length);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -129,7 +156,15 @@ async function callOpenAI(model: string, messages: any[], config: any) {
     }),
   });
 
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error('OpenAI API error:', response.status, errorData);
+    throw new Error(`OpenAI API error: ${response.status} ${errorData}`);
+  }
+
   const data = await response.json();
+  console.log('OpenAI response structure:', Object.keys(data));
+  
   return data.choices[0].message.content;
 }
 

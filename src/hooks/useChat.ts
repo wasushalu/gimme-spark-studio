@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatConversation, ChatMessage, AgentConfigVersion } from '@/types/database';
 import { useAuth } from './useAuth';
+import { toast } from 'sonner';
 
 export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat') {
   const { user } = useAuth();
@@ -57,6 +58,8 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     mutationFn: async ({ title, workspaceId }: { title?: string; workspaceId?: string }) => {
       if (!user) throw new Error('User must be authenticated');
 
+      console.log('Creating conversation for user:', user.id, 'agent:', agentType);
+
       const { data, error } = await supabase
         .from('chat_conversations')
         .insert({
@@ -68,25 +71,39 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating conversation:', error);
+        throw error;
+      }
+      
+      console.log('Created conversation:', data);
       return data as ChatConversation;
     },
     onSuccess: (conversation) => {
       setCurrentConversationId(conversation.id);
       queryClient.invalidateQueries({ queryKey: ['user-conversations'] });
     },
+    onError: (error) => {
+      console.error('Failed to create conversation:', error);
+      toast.error('Failed to start conversation');
+    }
   });
 
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async ({ content, conversationId }: { content: string; conversationId?: string }) => {
+      console.log('Sending message:', content);
+      
       let activeConversationId = conversationId || currentConversationId;
 
       // Create conversation if none exists
       if (!activeConversationId) {
+        console.log('No conversation exists, creating new one');
         const conversation = await createConversationMutation.mutateAsync({});
         activeConversationId = conversation.id;
       }
+
+      console.log('Using conversation ID:', activeConversationId);
 
       // Add user message
       const { data: userMessage, error: userError } = await supabase
@@ -99,24 +116,41 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
         .select()
         .single();
 
-      if (userError) throw userError;
+      if (userError) {
+        console.error('Error saving user message:', userError);
+        throw userError;
+      }
+
+      console.log('User message saved:', userMessage);
 
       // Call edge function to get AI response, passing the agent configuration
+      console.log('Calling edge function with config:', agentConfig?.settings);
+      
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke('chat', {
         body: {
           conversationId: activeConversationId,
           message: content,
           agentType,
-          agentConfig: agentConfig?.settings, // Pass the dynamic configuration
+          agentConfig: agentConfig?.settings,
         },
       });
 
-      if (aiError) throw aiError;
+      if (aiError) {
+        console.error('Error from edge function:', aiError);
+        throw aiError;
+      }
+
+      console.log('AI response received:', aiResponse);
 
       return { userMessage: userMessage as ChatMessage, aiResponse };
     },
     onSuccess: () => {
+      console.log('Message sent successfully, invalidating queries');
       queryClient.invalidateQueries({ queryKey: ['chat-messages', currentConversationId] });
+    },
+    onError: (error) => {
+      console.error('Failed to send message:', error);
+      toast.error('Failed to send message');
     },
   });
 
@@ -124,13 +158,23 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     setCurrentConversationId(null);
   }, []);
 
+  const sendMessage = useCallback(async ({ content }: { content: string }) => {
+    if (!content.trim()) return;
+    
+    try {
+      await sendMessageMutation.mutateAsync({ content });
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
+    }
+  }, [sendMessageMutation]);
+
   return {
     agentConfig,
     configLoading,
     messages,
     messagesLoading,
     currentConversationId,
-    sendMessage: sendMessageMutation.mutate,
+    sendMessage,
     isLoading: sendMessageMutation.isPending,
     startNewConversation,
     createConversation: createConversationMutation.mutate,
