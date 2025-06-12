@@ -1,6 +1,6 @@
 
 -- Create table for storing uploaded documents
-CREATE TABLE public.knowledge_base_documents (
+CREATE TABLE IF NOT EXISTS public.knowledge_base_documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     agent_id TEXT NOT NULL,
     filename TEXT NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE public.knowledge_base_documents (
 );
 
 -- Create table for storing processed text chunks
-CREATE TABLE public.knowledge_base_chunks (
+CREATE TABLE IF NOT EXISTS public.knowledge_base_chunks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     document_id UUID REFERENCES public.knowledge_base_documents(id) ON DELETE CASCADE NOT NULL,
     agent_id TEXT NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE public.knowledge_base_chunks (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Create storage bucket for knowledge base documents
+-- Create storage bucket for knowledge base documents if it doesn't exist
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
     'knowledge-base',
@@ -36,11 +36,22 @@ VALUES (
     false,
     52428800, -- 50MB limit
     ARRAY['application/pdf', 'text/plain', 'text/markdown', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-);
+)
+ON CONFLICT (id) DO NOTHING;
 
 -- Enable RLS on new tables
 ALTER TABLE public.knowledge_base_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.knowledge_base_chunks ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view documents in their workspace" ON public.knowledge_base_documents;
+DROP POLICY IF EXISTS "Users can upload documents" ON public.knowledge_base_documents;
+DROP POLICY IF EXISTS "Users can update their documents" ON public.knowledge_base_documents;
+DROP POLICY IF EXISTS "Users can delete their documents" ON public.knowledge_base_documents;
+DROP POLICY IF EXISTS "Users can view chunks from their documents" ON public.knowledge_base_chunks;
+DROP POLICY IF EXISTS "Users can upload to knowledge base" ON storage.objects;
+DROP POLICY IF EXISTS "Users can view their knowledge base files" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their knowledge base files" ON storage.objects;
 
 -- RLS Policies for knowledge_base_documents
 CREATE POLICY "Users can view documents in their workspace"
@@ -82,8 +93,8 @@ CREATE POLICY "Users can delete their knowledge base files"
     USING (bucket_id = 'knowledge-base' AND auth.uid()::text = (storage.foldername(name))[1]);
 
 -- Create indexes for better performance
-CREATE INDEX idx_knowledge_base_documents_agent_id ON public.knowledge_base_documents(agent_id);
-CREATE INDEX idx_knowledge_base_documents_status ON public.knowledge_base_documents(status);
-CREATE INDEX idx_knowledge_base_chunks_document_id ON public.knowledge_base_chunks(document_id);
-CREATE INDEX idx_knowledge_base_chunks_agent_id ON public.knowledge_base_chunks(agent_id);
-CREATE INDEX idx_knowledge_base_chunks_embedding ON public.knowledge_base_chunks USING ivfflat (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_knowledge_base_documents_agent_id ON public.knowledge_base_documents(agent_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_base_documents_status ON public.knowledge_base_documents(status);
+CREATE INDEX IF NOT EXISTS idx_knowledge_base_chunks_document_id ON public.knowledge_base_chunks(document_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_base_chunks_agent_id ON public.knowledge_base_chunks(agent_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_base_chunks_embedding ON public.knowledge_base_chunks USING ivfflat (embedding vector_cosine_ops);

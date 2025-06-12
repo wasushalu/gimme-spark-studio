@@ -13,6 +13,7 @@ serve(async (req) => {
 
   try {
     const { documentId, filePath, agentId } = await req.json()
+    console.log(`Processing document: ${documentId}, file: ${filePath}, agent: ${agentId}`)
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -25,28 +26,78 @@ serve(async (req) => {
       .download(filePath)
 
     if (downloadError) {
+      console.error('Download error:', downloadError)
       throw new Error(`Failed to download file: ${downloadError.message}`)
     }
+
+    console.log(`Downloaded file size: ${fileData.size} bytes`)
 
     // Extract text based on file type
     const fileName = filePath.split('/').pop() || ''
     const fileExtension = fileName.toLowerCase().split('.').pop()
     let extractedText = ''
 
+    console.log(`Processing file: ${fileName}, extension: ${fileExtension}`)
+
     if (fileExtension === 'txt' || fileExtension === 'md') {
       extractedText = await fileData.text()
     } else if (fileExtension === 'pdf') {
-      // For PDF processing, we'd need a PDF library like pdf-parse
-      // For now, we'll simulate text extraction
-      extractedText = "PDF text extraction would be implemented here with a PDF parsing library."
+      // For now, we'll use a basic PDF text extraction approach
+      // In a production environment, you'd want to use a proper PDF library
+      try {
+        const arrayBuffer = await fileData.arrayBuffer()
+        const uint8Array = new Uint8Array(arrayBuffer)
+        
+        // Simple PDF text extraction (this is basic and may not work for all PDFs)
+        // For production, consider using a proper PDF parsing library
+        const text = new TextDecoder().decode(uint8Array)
+        
+        // Extract readable text from PDF (very basic approach)
+        const textMatches = text.match(/BT\s*\/\w+\s+\d+\s+Tf\s*(.+?)\s*ET/g)
+        if (textMatches) {
+          extractedText = textMatches.map(match => {
+            return match.replace(/BT\s*\/\w+\s+\d+\s+Tf\s*/, '').replace(/\s*ET/, '')
+          }).join(' ')
+        }
+        
+        // Fallback: try to extract any readable text
+        if (!extractedText) {
+          const readableTextRegex = /[a-zA-Z0-9\s.,!?;:'"()[\]{}\-+=@#$%^&*|\\/<>~`]+/g
+          const matches = text.match(readableTextRegex)
+          if (matches) {
+            extractedText = matches.filter(m => m.length > 10).join(' ')
+          }
+        }
+        
+        // If still no text, provide a message
+        if (!extractedText || extractedText.trim().length < 10) {
+          extractedText = `PDF document uploaded: ${fileName}. Content could not be automatically extracted. Please consider converting to text format for better searchability.`
+        }
+        
+        console.log(`Extracted ${extractedText.length} characters from PDF`)
+      } catch (pdfError) {
+        console.error('PDF processing error:', pdfError)
+        extractedText = `PDF document uploaded: ${fileName}. Text extraction failed. Please consider uploading as text format.`
+      }
     } else if (fileExtension === 'docx') {
-      // For DOCX processing, we'd need a library like mammoth
-      extractedText = "DOCX text extraction would be implemented here with a DOCX parsing library."
+      // For DOCX, we'll provide a placeholder and suggestion
+      extractedText = `DOCX document uploaded: ${fileName}. For best results, please copy and paste the content as text or convert to PDF.`
     } else {
-      extractedText = await fileData.text()
+      // Try to read as text for any other format
+      try {
+        extractedText = await fileData.text()
+      } catch (error) {
+        console.error('Error reading file as text:', error)
+        extractedText = `Document uploaded: ${fileName}. Content type not fully supported. Please consider converting to text format.`
+      }
     }
 
-    console.log(`Extracted ${extractedText.length} characters from ${fileName}`)
+    // Ensure we have some content
+    if (!extractedText || extractedText.trim().length === 0) {
+      extractedText = `Document uploaded: ${fileName}. No text content could be extracted.`
+    }
+
+    console.log(`Final extracted text length: ${extractedText.length} characters`)
 
     // Chunk the text using best practices
     const chunks = chunkText(extractedText, {
@@ -67,6 +118,7 @@ serve(async (req) => {
     
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i]
+      console.log(`Processing chunk ${i + 1}/${chunks.length}`)
       
       // Generate embedding using OpenAI
       const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
@@ -82,6 +134,8 @@ serve(async (req) => {
       })
 
       if (!embeddingResponse.ok) {
+        const errorText = await embeddingResponse.text()
+        console.error('Embedding API error:', errorText)
         throw new Error(`Failed to generate embedding: ${embeddingResponse.statusText}`)
       }
 
@@ -99,9 +153,13 @@ serve(async (req) => {
         metadata: {
           startIndex: chunk.startIndex,
           endIndex: chunk.endIndex,
+          fileName: fileName,
+          fileExtension: fileExtension,
         }
       })
     }
+
+    console.log(`Inserting ${chunksToInsert.length} chunks`)
 
     // Insert all chunks
     const { error: insertError } = await supabaseClient
@@ -109,16 +167,21 @@ serve(async (req) => {
       .insert(chunksToInsert)
 
     if (insertError) {
+      console.error('Insert error:', insertError)
       throw new Error(`Failed to insert chunks: ${insertError.message}`)
     }
 
     // Update document status to completed
     const { error: updateError } = await supabaseClient
       .from('knowledge_base_documents')
-      .update({ status: 'completed' })
+      .update({ 
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      })
       .eq('id', documentId)
 
     if (updateError) {
+      console.error('Update error:', updateError)
       throw new Error(`Failed to update document status: ${updateError.message}`)
     }
 
@@ -128,6 +191,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         chunksCreated: chunks.length,
+        extractedTextLength: extractedText.length,
         message: 'Document processed successfully'
       }),
       { 
@@ -143,7 +207,9 @@ serve(async (req) => {
 
     // Update document status to failed if we have the documentId
     try {
-      const { documentId } = await req.clone().json()
+      const body = await req.clone().text()
+      const { documentId } = JSON.parse(body)
+      
       if (documentId) {
         const supabaseClient = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
@@ -152,7 +218,10 @@ serve(async (req) => {
         
         await supabaseClient
           .from('knowledge_base_documents')
-          .update({ status: 'failed' })
+          .update({ 
+            status: 'failed',
+            updated_at: new Date().toISOString()
+          })
           .eq('id', documentId)
       }
     } catch (updateError) {
