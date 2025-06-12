@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatMessage, AgentConfigVersion } from '@/types/database';
@@ -46,14 +45,21 @@ export function useChatMessages(
     staleTime: 1000, // 1 second - messages should be fresh
   });
 
-  // Return guest messages for non-authenticated users, database messages for authenticated users
-  const messages = user ? (messagesQuery.data || []) : guestMessages;
+  // Return database messages for authenticated users
+  const messages = messagesQuery.data || [];
 
   const addGuestMessage = useCallback((message: LocalMessage) => {
-    setGuestMessages(prev => [...prev, message]);
+    console.log('=== ADDING GUEST MESSAGE ===');
+    console.log('Message to add:', message);
+    setGuestMessages(prev => {
+      const updated = [...prev, message];
+      console.log('Updated guest messages:', updated);
+      return updated;
+    });
   }, []);
 
   const clearGuestMessages = useCallback(() => {
+    console.log('=== CLEARING GUEST MESSAGES ===');
     setGuestMessages([]);
   }, []);
 
@@ -75,6 +81,7 @@ export function useChatMessages(
     }) => {
       console.log('=== FRONTEND MESSAGE SEND START ===');
       console.log('Sending message:', content);
+      console.log('Is guest user:', !user);
       
       // Check if agent requires authentication
       if (needsAuth && !user) {
@@ -100,6 +107,7 @@ export function useChatMessages(
           content,
           created_at: new Date().toISOString(),
         };
+        console.log('Adding user message to guest state:', userMessage);
         addGuestMessage(userMessage);
       }
 
@@ -129,13 +137,6 @@ export function useChatMessages(
       // Prepare agent config for edge function
       const configToSend = agentConfig?.settings || null;
       console.log('Calling edge function with config:', configToSend);
-      console.log('Edge function payload:', {
-        conversationId: activeConversationId,
-        message: content,
-        agentType,
-        agentConfig: configToSend,
-        isGuest: !user,
-      });
       
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke('chat', {
         body: {
@@ -155,8 +156,6 @@ export function useChatMessages(
 
       console.log('=== EDGE FUNCTION SUCCESS ===');
       console.log('AI response received from edge function:', aiResponse);
-      console.log('AI response type:', typeof aiResponse);
-      console.log('AI response structure:', Object.keys(aiResponse || {}));
 
       if (!aiResponse || !aiResponse.response) {
         console.error('=== INVALID AI RESPONSE ===');
@@ -172,6 +171,7 @@ export function useChatMessages(
           content: aiResponse.response,
           created_at: new Date().toISOString(),
         };
+        console.log('Adding AI message to guest state:', aiMessage);
         addGuestMessage(aiMessage);
       }
 
@@ -182,7 +182,7 @@ export function useChatMessages(
     },
     onSuccess: (data) => {
       console.log('=== MUTATION SUCCESS ===');
-      console.log('Message sent successfully, invalidating queries');
+      console.log('Message sent successfully');
       console.log('Success data:', data);
       
       // Only invalidate queries for authenticated users
@@ -198,9 +198,10 @@ export function useChatMessages(
   });
 
   return {
-    messages,
+    messages, // Database messages (for authenticated users)
+    guestMessages, // Local messages (for guest users)
     messagesLoading: messagesQuery.isLoading,
     sendMessageMutation,
-    clearGuestMessages, // Export this for when user switches agents or signs in
+    clearGuestMessages,
   };
 }

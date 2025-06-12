@@ -11,7 +11,8 @@ export function useChatData() {
   const { 
     agentConfig, 
     configLoading, 
-    messages, 
+    messages: dbMessages, 
+    guestMessages,
     messagesLoading, 
     sendMessage, 
     isLoading,
@@ -19,6 +20,17 @@ export function useChatData() {
     needsAuth,
     clearGuestMessages
   } = useChat(activeAgent, false);
+
+  // Use guest messages for non-authenticated users, database messages for authenticated users
+  const messages = useMemo(() => {
+    const sourceMessages = user ? dbMessages : guestMessages;
+    console.log('=== MESSAGE SOURCE SELECTION ===');
+    console.log('User authenticated:', !!user);
+    console.log('Using guest messages:', !user);
+    console.log('Source messages count:', sourceMessages.length);
+    console.log('Source messages:', sourceMessages);
+    return sourceMessages;
+  }, [user, dbMessages, guestMessages]);
 
   // Get the base agent info (name, description, icon) from the static config
   const baseAgentInfo = useMemo(() => 
@@ -83,10 +95,10 @@ export function useChatData() {
     sendMessage({ content: message });
   }, [sendMessage, isLoading, messagesLoading]);
 
-  // Transform ChatMessage[] to Message[] format expected by ChatInterface
+  // Transform messages to UI format
   const transformedMessages = useMemo(() => {
-    console.log('=== TRANSFORMING MESSAGES ===');
-    console.log('Raw messages from database:', messages);
+    console.log('=== TRANSFORMING MESSAGES FOR UI ===');
+    console.log('Raw messages:', messages);
     
     const transformed = messages.map(msg => ({
       id: msg.id,
@@ -101,6 +113,8 @@ export function useChatData() {
 
   console.log('=== CHAT DATA STATE ===');
   console.log('Active agent:', activeAgent);
+  console.log('User authenticated:', !!user);
+  console.log('Using guest messages:', !user);
   console.log('Messages count:', transformedMessages.length);
   console.log('Is loading:', isLoading || messagesLoading || configLoading);
   console.log('Can use agent:', canUseAgent);

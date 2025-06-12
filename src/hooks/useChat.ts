@@ -16,7 +16,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
   
   const { data: agentConfig, isLoading: configLoading } = useChatConfig(agentType, canUseAgent);
   
-  const { messages, messagesLoading, sendMessageMutation, clearGuestMessages } = useChatMessages(
+  const { messages, guestMessages, messagesLoading, sendMessageMutation, clearGuestMessages } = useChatMessages(
     currentConversationId,
     user,
     canUseAgent
@@ -64,6 +64,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     agentConfig,
     configLoading,
     messages,
+    guestMessages, // Export guest messages
     messagesLoading,
     currentConversationId,
     sendMessage,
