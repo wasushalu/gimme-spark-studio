@@ -30,6 +30,7 @@ export default function ModelsPage() {
       const { data, error } = await supabase
         .from('model_catalog')
         .select('*')
+        .order('modality', { ascending: true })
         .order('provider', { ascending: true })
         .order('model_name', { ascending: true });
       
@@ -39,6 +40,8 @@ export default function ModelsPage() {
         count: data?.length,
         textModels: data?.filter(m => m.modality === 'text').length || 0,
         imageModels: data?.filter(m => m.modality === 'image').length || 0,
+        audioModels: data?.filter(m => m.modality === 'audio').length || 0,
+        videoModels: data?.filter(m => m.modality === 'video').length || 0,
         providers: [...new Set(data?.map(m => m.provider) || [])],
         modalities: [...new Set(data?.map(m => m.modality) || [])]
       });
@@ -140,7 +143,7 @@ export default function ModelsPage() {
             {filteredModels.length} of {models?.length || 0} models
             {models && models.length > 0 && (
               <span className="ml-2">
-                ({models.filter(m => m.modality === 'text').length} text, {models.filter(m => m.modality === 'image').length} image)
+                ({models.filter(m => m.modality === 'text').length} text, {models.filter(m => m.modality === 'image').length} image, {models.filter(m => m.modality === 'audio').length} audio, {models.filter(m => m.modality === 'video').length} video)
               </span>
             )}
           </p>
@@ -161,7 +164,7 @@ export default function ModelsPage() {
 
       {/* Stats cards for quick overview */}
       {models && models.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-blue-600">{models.length}</div>
@@ -179,17 +182,33 @@ export default function ModelsPage() {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-purple-600">
-                {[...new Set(models.map(m => m.provider))].length}
+                {models.filter(m => m.modality === 'text').length}
               </div>
-              <div className="text-sm text-gray-600">Providers</div>
+              <div className="text-sm text-gray-600">Text</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-orange-600">
-                {[...new Set(models.map(m => m.modality))].length}
+                {models.filter(m => m.modality === 'image').length}
               </div>
-              <div className="text-sm text-gray-600">Modalities</div>
+              <div className="text-sm text-gray-600">Image</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-pink-600">
+                {models.filter(m => m.modality === 'audio').length}
+              </div>
+              <div className="text-sm text-gray-600">Audio</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-indigo-600">
+                {models.filter(m => m.modality === 'video').length}
+              </div>
+              <div className="text-sm text-gray-600">Video</div>
             </CardContent>
           </Card>
         </div>
@@ -235,6 +254,10 @@ export default function ModelsPage() {
             <p>Total models fetched: {models.length}</p>
             <p>Providers: {[...new Set(models.map(m => m.provider))].join(', ')}</p>
             <p>Modalities: {[...new Set(models.map(m => m.modality))].join(', ')}</p>
+            <p>Text models: {models.filter(m => m.modality === 'text').length}</p>
+            <p>Image models: {models.filter(m => m.modality === 'image').length}</p>
+            <p>Audio models: {models.filter(m => m.modality === 'audio').length}</p>
+            <p>Video models: {models.filter(m => m.modality === 'video').length}</p>
             <p>Enabled models: {models.filter(m => m.enabled).length}</p>
             <p>Search term: "{searchTerm}"</p>
             <p>Filtered results: {filteredModels.length}</p>

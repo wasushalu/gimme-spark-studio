@@ -50,7 +50,11 @@ export function useAgentConfig(agent: Agent | null) {
         error, 
         count: data?.length,
         textModels: data?.filter(m => m.modality === 'text').length || 0,
-        imageModels: data?.filter(m => m.modality === 'image').length || 0
+        imageModels: data?.filter(m => m.modality === 'image').length || 0,
+        audioModels: data?.filter(m => m.modality === 'audio').length || 0,
+        videoModels: data?.filter(m => m.modality === 'video').length || 0,
+        allModalities: [...new Set(data?.map(m => m.modality) || [])],
+        allProviders: [...new Set(data?.map(m => m.provider) || [])]
       });
       
       if (error) {
@@ -64,10 +68,10 @@ export function useAgentConfig(agent: Agent | null) {
 
   const defaultConfig = {
     model: {
-      text: { provider: 'openai', model: 'gpt-4o-mini' },
+      text: { provider: 'openai', model: 'gpt-4.1-2025-04-14' },
       image: { provider: 'openai', model: 'dall-e-3' },
-      audio: { provider: null, model: null },
-      video: { provider: null, model: null }
+      audio: { provider: 'elevenlabs', model: 'eleven_multilingual_v2' },
+      video: { provider: 'openai', model: 'sora' }
     },
     generation: {
       max_context_tokens: 8000,
@@ -165,9 +169,13 @@ export function useAgentConfig(agent: Agent | null) {
     totalModels: models.length,
     textModels: getModelsByModality('text').length,
     imageModels: getModelsByModality('image').length,
+    audioModels: getModelsByModality('audio').length,
+    videoModels: getModelsByModality('video').length,
     configLoaded: !!config,
     currentTextModel: config?.model?.text?.model,
     currentImageModel: config?.model?.image?.model,
+    currentAudioModel: config?.model?.audio?.model,
+    currentVideoModel: config?.model?.video?.model,
     modelsLoading,
     modelsError: modelsError?.message
   });
