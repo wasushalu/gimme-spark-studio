@@ -1,3 +1,4 @@
+
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatMessage, AgentConfigVersion } from '@/types/database';
@@ -74,7 +75,7 @@ export function useChatMessages(
     }: { 
       content: string; 
       conversationId?: string;
-      agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat';
+      agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio';
       agentConfig: AgentConfigVersion | null;
       needsAuth: boolean;
       createConversation: () => Promise<{ id: string }>;

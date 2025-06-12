@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import type { User } from '@supabase/supabase-js';
 
 export function useChatConversation(
-  agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat',
+  agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio',
   user: User | null,
   setCurrentConversationId: (id: string | null) => void
 ) {
