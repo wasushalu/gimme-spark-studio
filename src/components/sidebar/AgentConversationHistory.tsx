@@ -97,6 +97,7 @@ export function AgentConversationHistory({ agentType }: AgentConversationHistory
     // Load conversations for the selected agent
     const agentConversations = mockConversations[agentType] || [];
     setConversations(agentConversations);
+    console.log('AgentConversationHistory: Loading conversations for agent:', agentType, 'Count:', agentConversations.length);
   }, [agentType]);
 
   const handleConversationClick = (conversation: Conversation) => {

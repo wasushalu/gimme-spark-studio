@@ -78,6 +78,8 @@ export function AppSidebar() {
   const [currentPath, setCurrentPath] = useState('/');
   const [selectedAgent, setSelectedAgent] = useState<string>('gimmebot');
 
+  console.log('AppSidebar: Current selected agent for history:', selectedAgent);
+
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
@@ -133,16 +135,19 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>History</SidebarGroupLabel>
+          <SidebarGroupLabel className="flex items-center gap-2">
+            <History className="w-4 h-4" />
+            Conversation History
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <div className="px-2 mb-3">
               <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-                <SelectTrigger className="h-8 text-sm">
+                <SelectTrigger className="h-8 text-sm bg-background">
                   <SelectValue placeholder="Select agent" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border shadow-md">
                   {agentOptions.map((agent) => (
-                    <SelectItem key={agent.value} value={agent.value}>
+                    <SelectItem key={agent.value} value={agent.value} className="text-sm">
                       {agent.label}
                     </SelectItem>
                   ))}
