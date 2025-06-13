@@ -1,32 +1,41 @@
 
 import { useState, useCallback } from 'react';
 
-// Local message type for guest users
-interface LocalMessage {
+export interface LocalMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   created_at: string;
-  conversation_id?: string;
 }
 
-export function useGuestMessages() {
-  const [guestMessages, setGuestMessages] = useState<LocalMessage[]>([]);
+// Store messages per agent type for guest users
+const guestMessageStore: Record<string, LocalMessage[]> = {};
+
+export function useGuestMessages(agentType?: string) {
+  const storageKey = agentType || 'default';
+  
+  // Initialize with stored messages for this agent
+  const [guestMessages, setGuestMessages] = useState<LocalMessage[]>(() => {
+    return guestMessageStore[storageKey] || [];
+  });
 
   const addGuestMessage = useCallback((message: LocalMessage) => {
-    console.log('=== ADDING GUEST MESSAGE ===');
-    console.log('Message to add:', message);
+    console.log('Adding guest message for agent', storageKey, ':', message);
+    
     setGuestMessages(prev => {
       const updated = [...prev, message];
-      console.log('Updated guest messages:', updated);
+      // Store in memory for this agent
+      guestMessageStore[storageKey] = updated;
       return updated;
     });
-  }, []);
+  }, [storageKey]);
 
   const clearGuestMessages = useCallback(() => {
-    console.log('=== CLEARING GUEST MESSAGES ===');
+    console.log('Clearing guest messages for agent:', storageKey);
     setGuestMessages([]);
-  }, []);
+    // Clear from memory store
+    guestMessageStore[storageKey] = [];
+  }, [storageKey]);
 
   return {
     guestMessages,
@@ -34,5 +43,3 @@ export function useGuestMessages() {
     clearGuestMessages,
   };
 }
-
-export type { LocalMessage };

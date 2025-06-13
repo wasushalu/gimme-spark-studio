@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useChatAuth } from './useChatAuth';
 import { useChatConfig } from './useChatConfig';
 import { useChat } from './useChat';
@@ -13,8 +13,20 @@ interface Agent {
   welcomeMessage: string;
 }
 
+// Track separate conversation states per agent
+interface AgentChatState {
+  conversationId: string | null;
+  isInitialized: boolean;
+}
+
 export function useChatData() {
   const [activeAgent, setActiveAgent] = useState<AgentType>('gimmebot');
+  const [agentStates, setAgentStates] = useState<Record<AgentType, AgentChatState>>({
+    gimmebot: { conversationId: null, isInitialized: false },
+    creative_concept: { conversationId: null, isInitialized: false },
+    neutral_chat: { conversationId: null, isInitialized: false },
+    studio: { conversationId: null, isInitialized: false },
+  });
   
   // Map creative_concept to studio for backend compatibility
   const backendAgentType = activeAgent === 'creative_concept' ? 'studio' : activeAgent;
@@ -28,11 +40,38 @@ export function useChatData() {
     messagesLoading,
     sendMessage,
     isLoading: chatLoading,
+    startNewConversation,
+    currentConversationId,
   } = useChat(backendAgentType);
 
+  // Update agent state when conversation ID changes
+  useEffect(() => {
+    if (currentConversationId !== agentStates[activeAgent].conversationId) {
+      setAgentStates(prev => ({
+        ...prev,
+        [activeAgent]: {
+          conversationId: currentConversationId,
+          isInitialized: true,
+        }
+      }));
+    }
+  }, [currentConversationId, activeAgent, agentStates]);
+
   const handleAgentSelect = useCallback((agentId: string) => {
-    setActiveAgent(agentId as AgentType);
-  }, []);
+    const newAgent = agentId as AgentType;
+    console.log('Switching from', activeAgent, 'to', newAgent);
+    
+    // If switching to a different agent, start a new conversation
+    if (newAgent !== activeAgent) {
+      setActiveAgent(newAgent);
+      
+      // Start new conversation for the new agent
+      // This will clear the current conversation state and messages
+      setTimeout(() => {
+        startNewConversation();
+      }, 0);
+    }
+  }, [activeAgent, startNewConversation]);
 
   const handleSendMessage = useCallback(async (content: string) => {
     if (!canUseAgent) return;
@@ -40,12 +79,13 @@ export function useChatData() {
     console.log('useChatData: Sending message with agent type:', {
       agentType: backendAgentType,
       hasConfig: !!agentConfig,
-      configPromptLength: agentConfig?.settings?.prompt?.length || 0
+      configPromptLength: agentConfig?.settings?.prompt?.length || 0,
+      conversationId: currentConversationId,
     });
     
     // Just pass the content - the useChat hook will handle the agent config internally
     await sendMessage({ content });
-  }, [canUseAgent, backendAgentType, agentConfig, sendMessage]);
+  }, [canUseAgent, backendAgentType, agentConfig, sendMessage, currentConversationId]);
 
   // Get current agent details with fallback welcome messages
   const currentAgent: Agent = {

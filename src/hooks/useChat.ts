@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useChatAuth } from './useChatAuth';
@@ -10,6 +10,7 @@ import { useChatConversation } from './useChatConversation';
 export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio', requireAuth = false) {
   const queryClient = useQueryClient();
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [lastAgentType, setLastAgentType] = useState<string>(agentType);
 
   // Use smaller hooks
   const { needsAuth, canUseAgent, user } = useChatAuth(agentType);
@@ -19,7 +20,8 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
   const { messages, guestMessages, messagesLoading, sendMessageMutation, clearGuestMessages } = useChatMessages(
     currentConversationId,
     user,
-    canUseAgent
+    canUseAgent,
+    agentType // Pass agent type for per-agent guest message storage
   );
   
   const createConversationMutation = useChatConversation(
@@ -28,7 +30,22 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     setCurrentConversationId
   );
 
+  // Clear conversation when agent type changes
+  useEffect(() => {
+    if (lastAgentType !== agentType) {
+      console.log('Agent type changed from', lastAgentType, 'to', agentType, '- clearing conversation');
+      setCurrentConversationId(null);
+      setLastAgentType(agentType);
+      
+      // Clear relevant queries for the old agent
+      queryClient.removeQueries({ queryKey: ['chat-messages'] });
+      
+      // Clear guest messages is handled per-agent now, so no need to clear when switching
+    }
+  }, [agentType, lastAgentType, queryClient]);
+
   const startNewConversation = useCallback(() => {
+    console.log('Starting new conversation for agent:', agentType);
     setCurrentConversationId(null);
     queryClient.removeQueries({ queryKey: ['chat-messages'] });
     
@@ -36,7 +53,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     if (!user && clearGuestMessages) {
       clearGuestMessages();
     }
-  }, [queryClient, user, clearGuestMessages]);
+  }, [queryClient, user, clearGuestMessages, agentType]);
 
   const sendMessage = useCallback(async ({ content }: { content: string }) => {
     if (!content.trim()) return;

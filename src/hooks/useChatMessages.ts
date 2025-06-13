@@ -7,10 +7,11 @@ import { useDatabaseMessages } from './useDatabaseMessages';
 export function useChatMessages(
   currentConversationId: string | null,
   user: User | null,
-  canUseAgent: boolean
+  canUseAgent: boolean,
+  agentType?: string
 ) {
-  // Local state for guest user messages
-  const { guestMessages, addGuestMessage, clearGuestMessages } = useGuestMessages();
+  // Local state for guest user messages (per agent)
+  const { guestMessages, addGuestMessage, clearGuestMessages } = useGuestMessages(agentType);
   
   // Database messages for authenticated users
   const { messages, messagesLoading } = useDatabaseMessages(
