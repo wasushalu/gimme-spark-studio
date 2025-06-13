@@ -19,9 +19,17 @@ import {
   Book, 
   User, 
   Plus,
-  Search,
-  Calendar
+  History,
+  ChevronDown
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { AgentConversationHistory } from '@/components/sidebar/AgentConversationHistory';
 
 const mainItems = [
   {
@@ -60,8 +68,15 @@ const workspaceItems = [
   }
 ];
 
+const agentOptions = [
+  { value: 'gimmebot', label: 'gimmebot' },
+  { value: 'studio', label: 'Studio' },
+  { value: 'neutral_chat', label: 'Chat' }
+];
+
 export function AppSidebar() {
   const [currentPath, setCurrentPath] = useState('/');
+  const [selectedAgent, setSelectedAgent] = useState<string>('gimmebot');
 
   return (
     <Sidebar>
@@ -114,6 +129,27 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>History</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <div className="px-2 mb-3">
+              <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Select agent" />
+                </SelectTrigger>
+                <SelectContent>
+                  {agentOptions.map((agent) => (
+                    <SelectItem key={agent.value} value={agent.value}>
+                      {agent.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <AgentConversationHistory agentType={selectedAgent} />
           </SidebarGroupContent>
         </SidebarGroup>
 
