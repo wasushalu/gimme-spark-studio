@@ -20,21 +20,23 @@ interface AgentSelectorProps {
 // Icon mapping for database agents
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'gimmebot': Bot,
-  'creative_concept': Palette,
-  'neutral_chat': MessageCircle,
   'studio': Palette,
+  'neutral_chat': MessageCircle,
   'default': Bot,
 };
 
+// Define the three main agents that should be displayed
+const MAIN_AGENTS = ['gimmebot', 'studio', 'neutral_chat'];
+
 export function AgentSelector({ activeAgent, onAgentSelect }: AgentSelectorProps) {
   const { data: dbAgents, isLoading } = useQuery({
-    queryKey: ['all-agents'],
+    queryKey: ['main-agents'],
     queryFn: async () => {
-      // Fetch both public and workspace agents
+      // Fetch only the main agents, excluding creative_concept
       const { data, error } = await supabase
         .from('agents')
         .select('*')
-        .in('visibility', ['public', 'workspace'])
+        .in('agent_id', MAIN_AGENTS)
         .order('created_at', { ascending: true });
       
       if (error) {
@@ -46,16 +48,18 @@ export function AgentSelector({ activeAgent, onAgentSelect }: AgentSelectorProps
     }
   });
 
-  // Transform database agents to component format
-  const agents: Agent[] = (dbAgents || []).map(agent => ({
-    id: agent.agent_id,
-    name: agent.label,
-    description: agent.type === 'root' ? 'Primary Assistant' : 'Specialized Assistant',
-    icon: iconMap[agent.agent_id] || iconMap.default,
-    primary: agent.agent_id === 'gimmebot',
-  }));
+  // Transform database agents to component format, filtering out creative_concept
+  const agents: Agent[] = (dbAgents || [])
+    .filter(agent => MAIN_AGENTS.includes(agent.agent_id))
+    .map(agent => ({
+      id: agent.agent_id,
+      name: agent.agent_id === 'neutral_chat' ? 'Jack' : agent.label,
+      description: agent.type === 'root' ? 'Primary Assistant' : 'Specialized Assistant',
+      icon: iconMap[agent.agent_id] || iconMap.default,
+      primary: agent.agent_id === 'gimmebot',
+    }));
 
-  // Fallback agents if database is empty or loading
+  // Fallback agents - only the three main agents
   const fallbackAgents: Agent[] = [
     {
       id: 'gimmebot',
@@ -80,6 +84,7 @@ export function AgentSelector({ activeAgent, onAgentSelect }: AgentSelectorProps
     },
   ];
 
+  // Use fallback agents if no database agents or use filtered database agents
   const displayAgents = agents.length > 0 ? agents : fallbackAgents;
 
   if (isLoading) {
@@ -118,7 +123,7 @@ export function AgentSelector({ activeAgent, onAgentSelect }: AgentSelectorProps
   );
 }
 
-// Export the icon mapping for backward compatibility
+// Export only the three main agents
 export const agents = [
   {
     id: 'gimmebot',
