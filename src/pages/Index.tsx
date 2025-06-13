@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Sparkles, MessageCircle, Zap, Users, TrendingUp } from "lucide-react";
+import { Sparkles, MessageCircle, Zap, Users, TrendingUp } from "lucide-react";
 
 const Index = () => {
   const { user } = useAuth();
@@ -114,35 +114,15 @@ const Index = () => {
             
             <Card className="notion-shadow-lg border-0 bg-card/80 backdrop-blur-sm">
               <div className="h-[600px] overflow-hidden rounded-lg">
-                {!canUseAgent ? (
-                  <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-6">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center">
-                      <Lock className="w-10 h-10 text-muted-foreground" />
-                    </div>
-                    <div className="space-y-3">
-                      <h3 className="text-2xl font-semibold">Authentication Required</h3>
-                      <p className="text-muted-foreground max-w-md">
-                        Please sign in to chat with {currentAgent.name}. You can continue using gimmebot without signing in.
-                      </p>
-                    </div>
-                    <Button 
-                      onClick={() => handleAgentSelect('gimmebot')}
-                      className="px-6 py-3"
-                    >
-                      Switch to gimmebot
-                    </Button>
-                  </div>
-                ) : (
-                  <ChatInterface
-                    agentName={currentAgent.name}
-                    agentDescription={currentAgent.description}
-                    welcomeMessage={currentAgent.welcomeMessage}
-                    placeholder={`Message ${currentAgent.name}...`}
-                    isLoading={isLoading}
-                    onSendMessage={handleSendMessage}
-                    messages={formattedMessages}
-                  />
-                )}
+                <ChatInterface
+                  agentName={currentAgent.name}
+                  agentDescription={currentAgent.description}
+                  welcomeMessage={currentAgent.welcomeMessage}
+                  placeholder={`Message ${currentAgent.name}...`}
+                  isLoading={isLoading}
+                  onSendMessage={handleSendMessage}
+                  messages={formattedMessages}
+                />
               </div>
             </Card>
           </div>
@@ -191,7 +171,6 @@ const Index = () => {
                 variant="outline" 
                 className="w-full justify-start"
                 onClick={() => handleAgentSelect('creative_concept')}
-                disabled={!canUseAgent}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Creative Studio
@@ -200,7 +179,6 @@ const Index = () => {
                 variant="outline" 
                 className="w-full justify-start"
                 onClick={() => handleAgentSelect('neutral_chat')}
-                disabled={!canUseAgent}
               >
                 <Users className="w-4 h-4 mr-2" />
                 General Chat
@@ -241,7 +219,6 @@ const Index = () => {
                 size="sm" 
                 className="w-full"
                 onClick={() => handleAgentSelect('creative_concept')}
-                disabled={!canUseAgent}
               >
                 Try Studio
               </Button>

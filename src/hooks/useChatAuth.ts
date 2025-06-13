@@ -8,9 +8,9 @@ export function useChatAuth(agentType: AgentType) {
   const { user } = useAuth();
 
   return useMemo(() => {
-    // Only gimmebot is available without authentication
-    const needsAuth = agentType !== 'gimmebot';
-    const canUseAgent = !needsAuth || !!user;
+    // For now, no agents require authentication - we'll add this back later
+    const needsAuth = false;
+    const canUseAgent = true;
     
     console.log(`useChatAuth: Agent ${agentType}, needsAuth: ${needsAuth}, canUseAgent: ${canUseAgent}`);
     
