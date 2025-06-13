@@ -130,11 +130,11 @@ function getAgentDescription(agentType: AgentType): string {
     case 'gimmebot':
       return 'AI Marketing Assistant';
     case 'creative_concept':
-      return 'Creative Hub';
+      return 'Creative Assistant';
     case 'neutral_chat':
       return 'Open Conversation';
     case 'studio':
-      return 'Creative Hub';
+      return 'Creative Assistant';
     default:
       return 'AI Assistant';
   }
