@@ -168,6 +168,65 @@
     60% { content: '..'; }
     80%, 100% { content: '...'; }
   }
+
+  /* Enhanced markdown prose styling */
+  .prose {
+    @apply text-foreground;
+  }
+
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4,
+  .prose h5,
+  .prose h6 {
+    @apply text-foreground font-semibold;
+  }
+
+  .prose strong {
+    @apply text-foreground font-semibold;
+  }
+
+  .prose code {
+    @apply text-foreground bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+  }
+
+  .prose pre {
+    @apply bg-muted/50 border border-border rounded-lg;
+  }
+
+  .prose blockquote {
+    @apply text-muted-foreground border-l-primary/30;
+  }
+
+  .prose ul > li::marker,
+  .prose ol > li::marker {
+    @apply text-muted-foreground;
+  }
+
+  .prose hr {
+    @apply border-border;
+  }
+
+  .prose table {
+    @apply border-border;
+  }
+
+  .prose thead {
+    @apply border-border;
+  }
+
+  .prose th {
+    @apply text-foreground border-border;
+  }
+
+  .prose td {
+    @apply border-border;
+  }
+
+  .prose tbody tr {
+    @apply border-border;
+  }
 }
 
 /* Custom scrollbar */

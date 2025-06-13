@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -6,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle, User, Send, Sparkles } from 'lucide-react';
+import { MarkdownMessage } from './MarkdownMessage';
 
 interface Message {
   id: string;
@@ -102,7 +102,7 @@ export function ChatInterface({
                   <div className="w-2 h-2 rounded-full bg-primary mt-2"></div>
                   <span className="text-sm font-medium text-primary">Welcome Message</span>
                 </div>
-                <p className="text-sm leading-relaxed">{welcomeMessage}</p>
+                <MarkdownMessage content={welcomeMessage} />
               </Card>
             </div>
           )}
@@ -130,18 +130,22 @@ export function ChatInterface({
                   ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground' 
                   : 'bg-gradient-to-br from-card to-card/80'
               }`}>
-                <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {message.isLoading ? (
+                {message.isLoading ? (
+                  <div className="text-sm text-muted-foreground">
                     <span className="loading-dots flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-current animate-bounce"></div>
                       <div className="w-2 h-2 rounded-full bg-current animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                       <div className="w-2 h-2 rounded-full bg-current animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                       <span className="ml-2">{loadingMessages[loadingMessageIndex]}</span>
                     </span>
-                  ) : (
-                    message.content
-                  )}
-                </div>
+                  </div>
+                ) : message.role === 'user' ? (
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                    {message.content}
+                  </div>
+                ) : (
+                  <MarkdownMessage content={message.content} />
+                )}
               </Card>
             </div>
           ))}
