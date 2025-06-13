@@ -16,6 +16,7 @@ export default function ModelsTab({ config, setConfig, models, getModelsByModali
   const currentImageModel = config?.model?.image?.model || '';
   const currentAudioModel = config?.model?.audio?.model || '';
   const currentVideoModel = config?.model?.video?.model || '';
+  const currentVisionModel = config?.model?.vision?.model || '';
   
   // Get models by modality
   const textModels = getModelsByModality('text');
@@ -33,6 +34,7 @@ export default function ModelsTab({ config, setConfig, models, getModelsByModali
     currentImageModel,
     currentAudioModel,
     currentVideoModel,
+    currentVisionModel,
     allModels: models.map(m => ({ id: m.id, name: m.model_name, modality: m.modality, provider: m.provider }))
   });
 
@@ -100,9 +102,25 @@ export default function ModelsTab({ config, setConfig, models, getModelsByModali
     }));
   };
 
+  const updateVisionModel = (modelName: string) => {
+    const selectedModel = imageModels.find(m => m.model_name === modelName);
+    console.log('ModelsTab: Updating vision model:', { modelName, selectedModel });
+    
+    setConfig(prev => ({
+      ...prev,
+      model: {
+        ...prev.model,
+        vision: {
+          provider: selectedModel?.provider || 'openai',
+          model: modelName
+        }
+      }
+    }));
+  };
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="space-y-2">
           <Label htmlFor="text-model">Text Model</Label>
           <Select
@@ -132,7 +150,7 @@ export default function ModelsTab({ config, setConfig, models, getModelsByModali
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="image-model">Image Model</Label>
+          <Label htmlFor="image-model">Image Generation</Label>
           <Select
             value={currentImageModel}
             onValueChange={updateImageModel}
@@ -141,21 +159,49 @@ export default function ModelsTab({ config, setConfig, models, getModelsByModali
               <SelectValue placeholder="Select image model" />
             </SelectTrigger>
             <SelectContent>
-              {imageModels.length > 0 ? (
-                imageModels.map((model) => (
+              {imageModels.filter(m => m.model_name.includes('dall-e') || m.model_name.includes('midjourney') || m.model_name.includes('stable-diffusion')).length > 0 ? (
+                imageModels.filter(m => m.model_name.includes('dall-e') || m.model_name.includes('midjourney') || m.model_name.includes('stable-diffusion')).map((model) => (
                   <SelectItem key={`image-${model.id}`} value={model.model_name}>
                     {model.provider} - {model.model_name}
                   </SelectItem>
                 ))
               ) : (
                 <SelectItem value="no-models" disabled>
-                  No image models available
+                  No image generation models available
                 </SelectItem>
               )}
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            {imageModels.length} image model{imageModels.length !== 1 ? 's' : ''} available
+            For creating images and artwork
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="vision-model">Visual Recognition</Label>
+          <Select
+            value={currentVisionModel}
+            onValueChange={updateVisionModel}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select vision model" />
+            </SelectTrigger>
+            <SelectContent>
+              {imageModels.filter(m => m.model_name.includes('gpt-4') || m.model_name.includes('gemini') || m.model_name.includes('claude')).length > 0 ? (
+                imageModels.filter(m => m.model_name.includes('gpt-4') || m.model_name.includes('gemini') || m.model_name.includes('claude')).map((model) => (
+                  <SelectItem key={`vision-${model.id}`} value={model.model_name}>
+                    {model.provider} - {model.model_name}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="no-models" disabled>
+                  No vision models available
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            For analyzing and understanding images
           </p>
         </div>
 
@@ -218,76 +264,47 @@ export default function ModelsTab({ config, setConfig, models, getModelsByModali
 
       {/* Enhanced debug information */}
       <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-        <h4 className="text-sm font-medium text-blue-900 mb-2">Enhanced Debug Information</h4>
+        <h4 className="text-sm font-medium text-blue-900 mb-2">Model Configuration Status</h4>
         <div className="text-xs text-blue-800 space-y-1">
           <p><strong>Total models loaded:</strong> {models.length}</p>
           <div className="grid grid-cols-2 gap-4 mt-2">
             <div>
               <p><strong>Text models ({textModels.length}):</strong></p>
-              <ul className="ml-2 list-disc">
-                {textModels.map(m => <li key={m.id}>{m.provider}/{m.model_name}</li>)}
+              <ul className="ml-2 list-disc max-h-20 overflow-y-auto">
+                {textModels.slice(0, 5).map(m => <li key={m.id}>{m.provider}/{m.model_name}</li>)}
+                {textModels.length > 5 && <li>... and {textModels.length - 5} more</li>}
               </ul>
             </div>
             <div>
               <p><strong>Image models ({imageModels.length}):</strong></p>
-              <ul className="ml-2 list-disc">
-                {imageModels.map(m => <li key={m.id}>{m.provider}/{m.model_name}</li>)}
+              <ul className="ml-2 list-disc max-h-20 overflow-y-auto">
+                {imageModels.slice(0, 5).map(m => <li key={m.id}>{m.provider}/{m.model_name}</li>)}
+                {imageModels.length > 5 && <li>... and {imageModels.length - 5} more</li>}
               </ul>
             </div>
             <div>
               <p><strong>Audio models ({audioModels.length}):</strong></p>
-              <ul className="ml-2 list-disc">
-                {audioModels.map(m => <li key={m.id}>{m.provider}/{m.model_name}</li>)}
+              <ul className="ml-2 list-disc max-h-20 overflow-y-auto">
+                {audioModels.slice(0, 5).map(m => <li key={m.id}>{m.provider}/{m.model_name}</li>)}
+                {audioModels.length > 5 && <li>... and {audioModels.length - 5} more</li>}
               </ul>
             </div>
             <div>
               <p><strong>Video models ({videoModels.length}):</strong></p>
-              <ul className="ml-2 list-disc">
-                {videoModels.map(m => <li key={m.id}>{m.provider}/{m.model_name}</li>)}
+              <ul className="ml-2 list-disc max-h-20 overflow-y-auto">
+                {videoModels.slice(0, 5).map(m => <li key={m.id}>{m.provider}/{m.model_name}</li>)}
+                {videoModels.length > 5 && <li>... and {videoModels.length - 5} more</li>}
               </ul>
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-blue-200">
             <p><strong>Current selections:</strong></p>
             <p>Text: {currentTextModel || 'None'}</p>
-            <p>Image: {currentImageModel || 'None'}</p>
+            <p>Image Generation: {currentImageModel || 'None'}</p>
+            <p>Visual Recognition: {currentVisionModel || 'None'}</p>
             <p>Audio: {currentAudioModel || 'None'}</p>
             <p>Video: {currentVideoModel || 'None'}</p>
           </div>
-        </div>
-      </div>
-
-      {/* Raw model data display */}
-      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-        <h4 className="text-sm font-medium text-gray-900 mb-2">Raw Model Data</h4>
-        <div className="text-xs space-y-1 max-h-60 overflow-y-auto">
-          {models.length === 0 ? (
-            <p className="text-red-600">⚠️ No models found! Check if models are being loaded properly.</p>
-          ) : (
-            <div className="space-y-1">
-              {models.map((model) => (
-                <div key={model.id} className="flex justify-between items-center bg-white p-2 rounded border">
-                  <span><strong>{model.provider}</strong> - {model.model_name}</span>
-                  <div className="flex gap-2">
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      model.modality === 'text' ? 'bg-blue-100 text-blue-800' :
-                      model.modality === 'image' ? 'bg-green-100 text-green-800' :
-                      model.modality === 'audio' ? 'bg-purple-100 text-purple-800' :
-                      model.modality === 'video' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {model.modality}
-                    </span>
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      model.enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {model.enabled ? 'Enabled' : 'Disabled'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>

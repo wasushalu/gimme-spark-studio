@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ModelCatalog } from '@/types/database';
@@ -56,10 +55,26 @@ export function useModelCatalog() {
     return filtered;
   };
 
+  // Helper function to get vision-capable models (subset of image models)
+  const getVisionModels = () => {
+    const visionModels = models.filter(model => 
+      model.modality === 'image' && 
+      (model.model_name.includes('gpt-4') || 
+       model.model_name.includes('gemini') || 
+       model.model_name.includes('claude') ||
+       model.model_name.includes('vision'))
+    );
+    console.log(`useModelCatalog: getVisionModels() returning ${visionModels.length} models:`, 
+      visionModels.map(m => ({ name: m.model_name, provider: m.provider }))
+    );
+    return visionModels;
+  };
+
   return {
     models,
     modelsLoading,
     modelsError,
-    getModelsByModality
+    getModelsByModality,
+    getVisionModels
   };
 }

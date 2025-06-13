@@ -2,34 +2,28 @@
 import { ModelCatalog } from '@/types/database';
 
 export function createDefaultConfig(models: ModelCatalog[]) {
-  // Get the best available models for each modality
-  const textModels = models.filter(m => m.modality === 'text' && m.enabled);
-  const imageModels = models.filter(m => m.modality === 'image' && m.enabled);
-  const audioModels = models.filter(m => m.modality === 'audio' && m.enabled);
-  const videoModels = models.filter(m => m.modality === 'video' && m.enabled);
+  // Get default models for each modality
+  const textModels = models.filter(m => m.modality === 'text');
+  const imageModels = models.filter(m => m.modality === 'image');
+  const audioModels = models.filter(m => m.modality === 'audio');
+  const videoModels = models.filter(m => m.modality === 'video');
 
-  // Prefer OpenAI models as defaults
-  const defaultTextModel = textModels.find(m => m.provider === 'openai') || textModels[0];
-  const defaultImageModel = imageModels.find(m => m.provider === 'openai') || imageModels[0];
+  // Find preferred default models
+  const defaultTextModel = textModels.find(m => m.provider === 'openai' && m.model_name === 'gpt-4o') || textModels[0];
+  const defaultImageModel = imageModels.find(m => m.provider === 'openai' && m.model_name === 'dall-e-3') || imageModels[0];
   const defaultAudioModel = audioModels.find(m => m.provider === 'elevenlabs') || audioModels[0];
-  const defaultVideoModel = videoModels.find(m => m.provider === 'openai') || videoModels[0];
-
-  console.log('createDefaultConfig: Creating default config with models:', {
-    textModel: defaultTextModel?.model_name,
-    imageModel: defaultImageModel?.model_name,
-    audioModel: defaultAudioModel?.model_name,
-    videoModel: defaultVideoModel?.model_name
-  });
+  const defaultVideoModel = videoModels.find(m => m.provider === 'openai' && m.model_name === 'sora') || videoModels[0];
+  const defaultVisionModel = imageModels.find(m => m.provider === 'openai' && m.model_name === 'gpt-4o') || imageModels[0];
 
   return {
     model: {
       text: {
         provider: defaultTextModel?.provider || 'openai',
-        model: defaultTextModel?.model_name || 'gpt-4o-mini'
+        model: defaultTextModel?.model_name || 'gpt-4o'
       },
       image: {
         provider: defaultImageModel?.provider || 'openai',
-        model: defaultImageModel?.model_name || 'gpt-image-1'
+        model: defaultImageModel?.model_name || 'dall-e-3'
       },
       audio: {
         provider: defaultAudioModel?.provider || 'elevenlabs',
@@ -37,18 +31,22 @@ export function createDefaultConfig(models: ModelCatalog[]) {
       },
       video: {
         provider: defaultVideoModel?.provider || 'openai',
-        model: defaultVideoModel?.model_name || 'sora-1.0'
+        model: defaultVideoModel?.model_name || 'sora'
+      },
+      vision: {
+        provider: defaultVisionModel?.provider || 'openai',
+        model: defaultVisionModel?.model_name || 'gpt-4o'
       }
     },
     generation: {
       max_context_tokens: 128000,
-      max_response_tokens: 8000,
+      max_response_tokens: 4000,
       temperature: 0.7,
       top_p: 1.0
     },
     prompt: '',
     welcome_message: '',
-    tools: ['image_generation'], // Add image generation as default tool
+    tools: [],
     knowledge_base: {
       enabled: false,
       vector_store_id: null,
@@ -63,7 +61,7 @@ export function createDefaultConfig(models: ModelCatalog[]) {
       signature: {}
     },
     router: {
-      strategy: 'default',
+      strategy: 'single',
       default_child: null
     }
   };
