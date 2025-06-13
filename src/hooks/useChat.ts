@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -29,17 +30,18 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     setCurrentConversationId
   );
 
-  // Handle agent type changes - reset conversation ID but don't clear guest messages
+  // Handle agent type changes - reset conversation ID but preserve guest messages per agent
   useEffect(() => {
     if (lastAgentType !== agentType) {
-      console.log('Agent type changed from', lastAgentType, 'to', agentType, '- resetting conversation ID');
+      console.log('Agent type changed from', lastAgentType, 'to', agentType, '- resetting conversation ID but preserving guest messages');
       setCurrentConversationId(null);
       setLastAgentType(agentType);
       
       // Clear relevant queries for the old agent
       queryClient.removeQueries({ queryKey: ['chat-messages'] });
       
-      // Don't clear guest messages - each agent keeps its own conversation thread
+      // Don't clear guest messages - each agent maintains its own conversation thread
+      // The useGuestMessages hook already handles per-agent isolation via the agentType parameter
     }
   }, [agentType, lastAgentType, queryClient]);
 

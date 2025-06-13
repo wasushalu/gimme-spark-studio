@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { useChatAuth } from './useChatAuth';
 import { useChatConfig } from './useChatConfig';
@@ -59,14 +60,13 @@ export function useChatData() {
   const handleAgentSelect = useCallback((agentId: string) => {
     const newAgent = agentId as AgentType;
     console.log('Switching from', activeAgent, 'to', newAgent);
-    console.log('Current guest messages for', activeAgent, ':', guestMessages.length);
     
     // Simply switch to the new agent - each agent maintains its own conversation thread
     if (newAgent !== activeAgent) {
       setActiveAgent(newAgent);
       console.log('Agent switched to:', newAgent);
     }
-  }, [activeAgent, guestMessages.length]);
+  }, [activeAgent]);
 
   const handleSendMessage = useCallback(async (content: string) => {
     console.log('useChatData: Sending message with agent type:', {
