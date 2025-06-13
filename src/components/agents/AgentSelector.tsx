@@ -46,7 +46,7 @@ const FALLBACK_AGENTS: Agent[] = [
   },
   {
     id: 'neutral_chat',
-    name: 'Neutral Chat',
+    name: 'Jack',
     description: 'Open Conversation',
     icon: MessageCircle,
     primary: false,
@@ -81,7 +81,7 @@ export function AgentSelector({ activeAgent, onAgentSelect }: AgentSelectorProps
   // Transform database agents to component format
   const agents: Agent[] = (dbAgents || []).map(agent => ({
     id: agent.agent_id,
-    name: agent.agent_id === 'neutral_chat' ? 'Neutral Chat' : agent.label,
+    name: agent.agent_id === 'neutral_chat' ? 'Jack' : agent.label,
     description: agent.type === 'root' ? 'Primary Assistant' : 'Specialized Assistant',
     icon: iconMap[agent.agent_id] || iconMap.default,
     primary: agent.agent_id === 'gimmebot',
