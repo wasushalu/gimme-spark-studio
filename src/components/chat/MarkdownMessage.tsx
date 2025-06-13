@@ -14,9 +14,11 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
     <div className={`prose prose-sm max-w-none dark:prose-invert ${className}`}>
       <ReactMarkdown
         components={{
-          code({ node, inline, className, children, ...props }) {
+          code({ node, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '');
-            return !inline && match ? (
+            const isInline = !node || node.tagName !== 'pre';
+            
+            return !isInline && match ? (
               <SyntaxHighlighter
                 style={oneDark}
                 language={match[1]}
