@@ -43,12 +43,34 @@ export async function generateImage(prompt: string, config: any, openaiApiKey: s
 
     const data = await response.json();
     console.log('Image generation response received');
+    console.log('Response data structure:', Object.keys(data));
     
-    // Handle the response - both models return base64 in b64_json field
-    if (data.data && data.data[0] && data.data[0].b64_json) {
-      const imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
-      console.log('Image generated successfully');
-      return imageUrl;
+    // Handle the response based on model type
+    if (data.data && data.data[0]) {
+      const imageData = data.data[0];
+      console.log('Image data keys:', Object.keys(imageData));
+      
+      if (imageModel === 'gpt-image-1') {
+        // gpt-image-1 returns base64 directly in the b64_json field
+        if (imageData.b64_json) {
+          const imageUrl = `data:image/png;base64,${imageData.b64_json}`;
+          console.log('Image generated successfully with gpt-image-1');
+          return imageUrl;
+        } else {
+          console.error('gpt-image-1 response missing b64_json field:', imageData);
+          return null;
+        }
+      } else {
+        // dall-e models return base64 in b64_json field when response_format is b64_json
+        if (imageData.b64_json) {
+          const imageUrl = `data:image/png;base64,${imageData.b64_json}`;
+          console.log('Image generated successfully with DALL-E');
+          return imageUrl;
+        } else {
+          console.error('DALL-E response missing b64_json field:', imageData);
+          return null;
+        }
+      }
     }
     
     console.error('Unexpected image generation response structure:', data);
