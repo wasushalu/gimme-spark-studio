@@ -113,14 +113,25 @@ export function AgentSelector({ activeAgent, onAgentSelect }: AgentSelectorProps
   return (
     <div className="grid grid-cols-3 gap-4 mb-8">
       {filteredAgents.map((agent) => {
-        const isActive = activeAgent === agent.id;
+        // Map creative_concept to studio for display purposes
+        const isActive = activeAgent === agent.id || (activeAgent === 'creative_concept' && agent.id === 'studio');
+        
+        const handleClick = () => {
+          // When clicking Studio, activate creative_concept
+          if (agent.id === 'studio') {
+            onAgentSelect('creative_concept');
+          } else {
+            onAgentSelect(agent.id);
+          }
+        };
+        
         return (
           <Card 
             key={agent.id}
             className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] border-border/50 h-20 ${
               isActive ? 'bg-orange-400 text-white border-orange-400 ring-2 ring-orange-400/50' : ''
             }`}
-            onClick={() => onAgentSelect(agent.id)}
+            onClick={handleClick}
           >
             <CardContent className="p-4 flex items-center justify-center h-full">
               <h3 className={`font-medium text-center ${
