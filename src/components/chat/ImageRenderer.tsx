@@ -16,7 +16,9 @@ export function ImageRenderer(props: ImageRendererProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [blobError, setBlobError] = useState<string | null>(null);
   const [finalImageSrc, setFinalImageSrc] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
+  const processedRef = useRef<boolean>(false);
   
   console.log('ImageRenderer: All props received:', props);
   
@@ -24,25 +26,28 @@ export function ImageRenderer(props: ImageRendererProps) {
   let src = props.src || props.node?.properties?.src || props.node?.url;
   let alt = props.alt || props.node?.properties?.alt;
   
-  // Check if this is a placeholder for an extracted large image
-  if (src && isExtractedImageId(src)) {
-    console.log('ImageRenderer: Detected extracted image placeholder:', src);
-    const extractedImage = getExtractedImage(src);
-    if (extractedImage) {
-      src = extractedImage.src;
-      alt = extractedImage.alt;
-      console.log('ImageRenderer: Restored large image, size:', src.length);
-    } else {
-      console.error('ImageRenderer: Could not find extracted image for ID:', src);
-    }
-  }
-  
-  console.log('ImageRenderer: Rendering image component');
-  console.log('ImageRenderer: Image src:', src ? `${src.substring(0, 50)}... (length: ${src.length})` : 'EMPTY');
-  console.log('ImageRenderer: Image alt:', alt);
-
-  // Convert large base64 images to blob URLs for better performance
+  // Check if this is a placeholder for an extracted large image - but only process once
   useEffect(() => {
+    if (processedRef.current) return;
+    
+    if (src && isExtractedImageId(src)) {
+      console.log('ImageRenderer: Detected extracted image placeholder:', src);
+      const extractedImage = getExtractedImage(src);
+      if (extractedImage) {
+        src = extractedImage.src;
+        alt = extractedImage.alt;
+        console.log('ImageRenderer: Restored large image, size:', src.length);
+        processedRef.current = true;
+      } else {
+        console.error('ImageRenderer: Could not find extracted image for ID:', src);
+        setImageError(true);
+        return;
+      }
+    }
+    
+    console.log('ImageRenderer: Processing image with src length:', src?.length || 0);
+
+    // Convert large base64 images to blob URLs for better performance
     if (!src || !src.startsWith('data:image/')) {
       setFinalImageSrc(src);
       return;
@@ -51,6 +56,7 @@ export function ImageRenderer(props: ImageRendererProps) {
     // For large images (>500KB), convert to blob URL
     if (src.length > 500 * 1024) {
       console.log('ImageRenderer: Converting large image to blob URL, size:', src.length);
+      setIsProcessing(true);
       
       try {
         // Validate base64 format more thoroughly
@@ -74,31 +80,15 @@ export function ImageRenderer(props: ImageRendererProps) {
           throw new Error('No base64 data found');
         }
 
-        // Test if base64 is valid
-        try {
-          const testDecode = atob(base64Data.substring(0, 100)); // Test first 100 chars
-        } catch (e) {
-          throw new Error('Invalid base64 encoding');
+        // Convert to binary
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
         }
         
-        // Convert to binary in chunks to avoid memory issues
-        const chunkSize = 8192;
-        const chunks = [];
-        
-        for (let i = 0; i < base64Data.length; i += chunkSize) {
-          const chunk = base64Data.substring(i, i + chunkSize);
-          const binaryChunk = atob(chunk);
-          const byteNumbers = new Array(binaryChunk.length);
-          
-          for (let j = 0; j < binaryChunk.length; j++) {
-            byteNumbers[j] = binaryChunk.charCodeAt(j);
-          }
-          
-          chunks.push(new Uint8Array(byteNumbers));
-        }
-        
-        // Create blob from chunks
-        const blob = new Blob(chunks, { type: mimeType });
+        // Create blob
+        const blob = new Blob([bytes], { type: mimeType });
         const url = URL.createObjectURL(blob);
         
         // Clean up previous blob URL
@@ -110,6 +100,7 @@ export function ImageRenderer(props: ImageRendererProps) {
         setBlobUrl(url);
         setFinalImageSrc(url);
         setBlobError(null);
+        setIsProcessing(false);
         console.log('ImageRenderer: Created blob URL successfully, blob size:', blob.size);
         
       } catch (error) {
@@ -117,20 +108,23 @@ export function ImageRenderer(props: ImageRendererProps) {
         setBlobError(error.message);
         setBlobUrl(null);
         setFinalImageSrc(src); // Fallback to original src
+        setIsProcessing(false);
       }
     } else {
       // For smaller images, use original src
       setFinalImageSrc(src);
     }
+  }, [src]); // Only depend on src to avoid re-processing
 
-    // Cleanup function
+  // Cleanup function
+  useEffect(() => {
     return () => {
       if (blobUrlRef.current) {
         URL.revokeObjectURL(blobUrlRef.current);
         blobUrlRef.current = null;
       }
     };
-  }, [src]);
+  }, []);
 
   const handleError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     console.error('ImageRenderer: Image onError event fired');
@@ -165,30 +159,6 @@ export function ImageRenderer(props: ImageRendererProps) {
     );
   }
 
-  // Handle extracted image placeholder IDs that couldn't be resolved
-  if (isExtractedImageId(src)) {
-    console.error('ImageRenderer: Unresolved extracted image ID:', src);
-    return (
-      <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
-        <p>Image failed to load: Could not resolve large image</p>
-        <p className="text-xs mt-1">Image ID: {src}</p>
-        <p className="text-xs mt-1">Alt text: {alt || 'No alt text'}</p>
-      </div>
-    );
-  }
-
-  // Validate base64 data URI format
-  if (!src.startsWith('data:image/')) {
-    console.error('ImageRenderer: Invalid image format, expected data:image/ but got:', src.substring(0, 50));
-    return (
-      <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
-        <p>Image failed to load: Invalid format</p>
-        <p className="text-xs mt-1">Expected data:image/ prefix</p>
-        <p className="text-xs mt-1">Received: {src.substring(0, 50)}...</p>
-      </div>
-    );
-  }
-
   // Show error state if blob creation failed
   if (blobError) {
     return (
@@ -203,6 +173,7 @@ export function ImageRenderer(props: ImageRendererProps) {
               setBlobError(null);
               setImageError(false);
               setImageLoaded(false);
+              processedRef.current = false;
             }}
             className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
           >
@@ -229,6 +200,7 @@ export function ImageRenderer(props: ImageRendererProps) {
               setImageError(false);
               setImageLoaded(false);
               setBlobError(null);
+              processedRef.current = false;
             }}
             className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
           >
@@ -239,12 +211,12 @@ export function ImageRenderer(props: ImageRendererProps) {
     );
   }
 
-  // Wait for finalImageSrc to be set
-  if (!finalImageSrc) {
+  // Wait for finalImageSrc to be set or show processing state
+  if (!finalImageSrc || isProcessing) {
     return (
       <div className="my-4 text-center">
         <div className="mb-2 text-sm text-muted-foreground">
-          Processing image... ({Math.round((src?.length || 0) / 1024)}KB)
+          {isProcessing ? 'Processing image...' : 'Loading image...'} ({Math.round((src?.length || 0) / 1024)}KB)
         </div>
       </div>
     );
@@ -269,7 +241,7 @@ export function ImageRenderer(props: ImageRendererProps) {
       />
       {alt && alt !== 'Generated image' && (
         <p className="text-sm text-muted-foreground mt-2 italic">{alt}</p>
-      )}
-    </div>
-  );
+      </div>
+    );
+  )
 }
