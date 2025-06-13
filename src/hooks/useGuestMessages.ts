@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export interface LocalMessage {
   id: string;
@@ -22,22 +22,29 @@ export function useGuestMessages(agentType?: string) {
     return guestMessageStores.get(storageKey) || [];
   });
 
+  // Sync with the Map when the storage key changes (agent switch)
+  useEffect(() => {
+    console.log('useGuestMessages: Agent type changed to:', storageKey);
+    if (!guestMessageStores.has(storageKey)) {
+      guestMessageStores.set(storageKey, []);
+    }
+    const storedMessages = guestMessageStores.get(storageKey) || [];
+    console.log('useGuestMessages: Loading messages for agent:', storageKey, 'count:', storedMessages.length);
+    setGuestMessages(storedMessages);
+  }, [storageKey]);
+
   const addGuestMessage = useCallback((message: LocalMessage) => {
     console.log('Adding guest message for agent', storageKey, ':', message);
     
-    setGuestMessages(prev => {
-      const updated = [...prev, message];
-      // Store in the isolated Map for this agent
-      guestMessageStores.set(storageKey, updated);
-      return updated;
-    });
+    const updatedMessages = [...(guestMessageStores.get(storageKey) || []), message];
+    guestMessageStores.set(storageKey, updatedMessages);
+    setGuestMessages(updatedMessages);
   }, [storageKey]);
 
   const clearGuestMessages = useCallback(() => {
     console.log('Clearing guest messages for agent:', storageKey);
-    setGuestMessages([]);
-    // Clear from the isolated Map store
     guestMessageStores.set(storageKey, []);
+    setGuestMessages([]);
   }, [storageKey]);
 
   return {
