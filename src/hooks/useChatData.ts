@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useChatAuth } from './useChatAuth';
 import { useChatConfig } from './useChatConfig';
@@ -18,11 +19,12 @@ export function useChatData() {
   // Map creative_concept to studio for backend compatibility
   const backendAgentType = activeAgent === 'creative_concept' ? 'studio' : activeAgent;
   
-  const { needsAuth, canUseAgent } = useChatAuth(backendAgentType);
+  const { needsAuth, canUseAgent, user } = useChatAuth(backendAgentType);
   const { data: agentConfig } = useChatConfig(backendAgentType, canUseAgent);
   
   const {
     messages,
+    guestMessages,
     messagesLoading,
     sendMessage,
     isLoading: chatLoading,
@@ -53,9 +55,12 @@ export function useChatData() {
     welcomeMessage: agentConfig?.settings?.welcome_message || getDefaultWelcomeMessage(activeAgent)
   };
 
+  // Return the appropriate messages based on user authentication status
+  const displayMessages = user ? messages : guestMessages;
+
   return {
     activeAgent,
-    messages,
+    messages: displayMessages, // Use guest messages for unauthenticated users
     isLoading: chatLoading || messagesLoading,
     currentAgent,
     handleAgentSelect,
