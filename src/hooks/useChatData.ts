@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { useChatAuth } from './useChatAuth';
 import { useChatConfig } from './useChatConfig';
@@ -61,17 +60,13 @@ export function useChatData() {
     const newAgent = agentId as AgentType;
     console.log('Switching from', activeAgent, 'to', newAgent);
     
-    // If switching to a different agent, start a new conversation
+    // Simply switch to the new agent - don't clear conversations
+    // Each agent maintains its own conversation thread
     if (newAgent !== activeAgent) {
       setActiveAgent(newAgent);
-      
-      // Start new conversation for the new agent
-      // This will clear the current conversation state and messages
-      setTimeout(() => {
-        startNewConversation();
-      }, 0);
+      // Don't call startNewConversation() here - let each agent keep its own thread
     }
-  }, [activeAgent, startNewConversation]);
+  }, [activeAgent]);
 
   const handleSendMessage = useCallback(async (content: string) => {
     console.log('useChatData: Sending message with agent type:', {
