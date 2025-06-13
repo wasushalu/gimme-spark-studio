@@ -1,62 +1,11 @@
 
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-
-interface Workspace {
-  id: string;
-  name: string;
-  description?: string;
-  projects: Project[];
-}
-
-interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  brandVaults: BrandVault[];
-}
-
-interface BrandVault {
-  id: string;
-  name: string;
-  description?: string;
-}
-
-// Database types
-interface DbWorkspace {
-  id: string;
-  name: string;
-  description: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-interface DbProject {
-  id: string;
-  workspace_id: string;
-  name: string;
-  description: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-interface DbBrandVault {
-  id: string;
-  project_id: string;
-  name: string;
-  description: string | null;
-  created_at: string;
-  updated_at: string;
-}
+import { Workspace, DbWorkspace, DbProject, DbBrandVault } from "@/types/workspace";
+import { useWorkspaceSelection } from "./useWorkspaceSelection";
+import { useWorkspaceMutations } from "./useWorkspaceMutations";
 
 export function useWorkspaceData() {
-  const queryClient = useQueryClient();
-  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [selectedBrandVault, setSelectedBrandVault] = useState<BrandVault | null>(null);
-
   // Fetch workspaces with their projects and brand vaults
   const { data: workspaces = [], isLoading } = useQuery({
     queryKey: ['workspaces'],
@@ -126,169 +75,22 @@ export function useWorkspaceData() {
     },
   });
 
-  // Set initial selections when data loads
-  useEffect(() => {
-    if (workspaces.length > 0 && !selectedWorkspace) {
-      const defaultWorkspace = workspaces[0];
-      setSelectedWorkspace(defaultWorkspace);
-      
-      if (defaultWorkspace.projects.length > 0) {
-        const defaultProject = defaultWorkspace.projects[0];
-        setSelectedProject(defaultProject);
-        
-        if (defaultProject.brandVaults.length > 0) {
-          setSelectedBrandVault(defaultProject.brandVaults[0]);
-        }
-      }
-    }
-  }, [workspaces, selectedWorkspace]);
+  const {
+    selectedWorkspace,
+    selectedProject,
+    selectedBrandVault,
+    handleWorkspaceSelect,
+    handleProjectSelect,
+    handleBrandVaultSelect,
+  } = useWorkspaceSelection(workspaces);
 
-  // Add workspace mutation - simplified with better error handling
-  const addWorkspaceMutation = useMutation({
-    mutationFn: async (name: string) => {
-      console.log('Creating workspace with name:', name);
-      
-      const { data, error } = await supabase
-        .from('workspaces')
-        .insert([{ name, description: null }])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating workspace:', error);
-        throw error;
-      }
-      
-      console.log('Workspace created successfully:', data);
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
-      toast.success('Workspace created successfully');
-      
-      // Select the new workspace
-      const newWorkspace: Workspace = {
-        id: data.id,
-        name: data.name,
-        description: data.description || undefined,
-        projects: [],
-      };
-      setSelectedWorkspace(newWorkspace);
-      setSelectedProject(null);
-      setSelectedBrandVault(null);
-    },
-    onError: (error) => {
-      console.error('Error creating workspace:', error);
-      toast.error('Failed to create workspace');
-    },
-  });
-
-  // Add project mutation - simplified with better error handling
-  const addProjectMutation = useMutation({
-    mutationFn: async (name: string) => {
-      if (!selectedWorkspace) throw new Error('No workspace selected');
-      
-      console.log('Creating project with name:', name, 'in workspace:', selectedWorkspace.id);
-      
-      const { data, error } = await supabase
-        .from('projects')
-        .insert([{ name, workspace_id: selectedWorkspace.id, description: null }])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating project:', error);
-        throw error;
-      }
-      
-      console.log('Project created successfully:', data);
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
-      toast.success('Project created successfully');
-      
-      // Select the new project
-      const newProject: Project = {
-        id: data.id,
-        name: data.name,
-        description: data.description || undefined,
-        brandVaults: [],
-      };
-      setSelectedProject(newProject);
-      setSelectedBrandVault(null);
-    },
-    onError: (error) => {
-      console.error('Error creating project:', error);
-      toast.error('Failed to create project');
-    },
-  });
-
-  // Add brand vault mutation - simplified with better error handling
-  const addBrandVaultMutation = useMutation({
-    mutationFn: async (name: string) => {
-      if (!selectedProject) throw new Error('No project selected');
-      
-      console.log('Creating brand vault with name:', name, 'in project:', selectedProject.id);
-      
-      const { data, error } = await supabase
-        .from('brand_vaults')
-        .insert([{ name, project_id: selectedProject.id, description: null }])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating brand vault:', error);
-        throw error;
-      }
-      
-      console.log('Brand vault created successfully:', data);
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
-      toast.success('Brand vault created successfully');
-      
-      // Select the new brand vault
-      const newBrandVault: BrandVault = {
-        id: data.id,
-        name: data.name,
-        description: data.description || undefined,
-      };
-      setSelectedBrandVault(newBrandVault);
-    },
-    onError: (error) => {
-      console.error('Error creating brand vault:', error);
-      toast.error('Failed to create brand vault');
-    },
-  });
-
-  const addWorkspace = (name: string) => {
-    addWorkspaceMutation.mutate(name);
-  };
-
-  const addProject = (name: string) => {
-    addProjectMutation.mutate(name);
-  };
-
-  const addBrandVault = (name: string) => {
-    addBrandVaultMutation.mutate(name);
-  };
-
-  const handleWorkspaceSelect = (workspace: Workspace) => {
-    setSelectedWorkspace(workspace);
-    setSelectedProject(null);
-    setSelectedBrandVault(null);
-  };
-
-  const handleProjectSelect = (project: Project) => {
-    setSelectedProject(project);
-    setSelectedBrandVault(null);
-  };
-
-  const handleBrandVaultSelect = (brandVault: BrandVault) => {
-    setSelectedBrandVault(brandVault);
-  };
+  const { addWorkspace, addProject, addBrandVault } = useWorkspaceMutations(
+    selectedWorkspace,
+    selectedProject,
+    handleWorkspaceSelect,
+    handleProjectSelect,
+    handleBrandVaultSelect
+  );
 
   return {
     workspaces,
@@ -305,4 +107,4 @@ export function useWorkspaceData() {
   };
 }
 
-export type { Workspace, Project, BrandVault };
+export type { Workspace, Project, BrandVault } from "@/types/workspace";
