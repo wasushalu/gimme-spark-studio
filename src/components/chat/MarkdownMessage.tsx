@@ -37,6 +37,23 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
               </code>
             );
           },
+          img({ src, alt, ...props }) {
+            return (
+              <img 
+                src={src} 
+                alt={alt} 
+                className="max-w-full h-auto rounded-lg shadow-md my-4" 
+                onError={(e) => {
+                  console.error('Image failed to load:', src);
+                  e.currentTarget.style.display = 'none';
+                }}
+                onLoad={() => {
+                  console.log('Image loaded successfully:', src?.substring(0, 50) + '...');
+                }}
+                {...props} 
+              />
+            );
+          },
           h1: ({ children }) => (
             <h1 className="text-xl font-bold mb-3 mt-4 first:mt-0">{children}</h1>
           ),
