@@ -45,10 +45,11 @@ export function useAgentConfig(agent: Agent | null) {
   useEffect(() => {
     if (currentConfig?.settings) {
       console.log('useAgentConfig: Updating config from currentConfig:', currentConfig.settings);
-      // Ensure prompt is preserved
+      // Ensure prompt and welcome_message are preserved
       const updatedConfig = {
         ...currentConfig.settings,
-        prompt: currentConfig.settings.prompt || ''
+        prompt: currentConfig.settings.prompt || '',
+        welcome_message: currentConfig.settings.welcome_message || ''
       };
       setConfig(updatedConfig);
     } else if (models.length > 0 && !currentConfig) {

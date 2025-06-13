@@ -32,12 +32,12 @@ export function createDefaultConfig(models: ModelCatalog[]) {
         model: defaultImageModel?.model_name || 'dall-e-3'
       },
       audio: {
-        provider: defaultAudioModel?.provider || null,
-        model: defaultAudioModel?.model_name || null
+        provider: defaultAudioModel?.provider || 'elevenlabs',
+        model: defaultAudioModel?.model_name || 'eleven_turbo_v2'
       },
       video: {
-        provider: defaultVideoModel?.provider || null,
-        model: defaultVideoModel?.model_name || null
+        provider: defaultVideoModel?.provider || 'openai',
+        model: defaultVideoModel?.model_name || 'sora-1.0'
       }
     },
     generation: {
@@ -47,7 +47,7 @@ export function createDefaultConfig(models: ModelCatalog[]) {
       top_p: 1.0
     },
     prompt: '', // Empty by default - must be set in admin
-    welcome_message: '',
+    welcome_message: '', // Ensure this is always a string
     tools: [],
     knowledge_base: {
       enabled: false,

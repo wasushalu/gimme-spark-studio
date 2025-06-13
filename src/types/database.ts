@@ -1,4 +1,3 @@
-
 export interface Profile {
   id: string;
   first_name?: string;
@@ -58,8 +57,8 @@ export interface AgentConfigVersion {
     model: {
       text: { provider: string; model: string };
       image: { provider: string; model: string };
-      audio: { provider: string | null; model: string | null };
-      video: { provider: string | null; model: string | null };
+      audio: { provider: string; model: string };
+      video: { provider: string; model: string };
     };
     generation: {
       max_context_tokens: number;
@@ -68,7 +67,7 @@ export interface AgentConfigVersion {
       top_p: number;
     };
     prompt: string;
-    welcome_message?: string;
+    welcome_message: string;
     tools: string[];
     knowledge_base: {
       enabled: boolean;
