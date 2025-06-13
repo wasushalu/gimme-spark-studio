@@ -13,6 +13,28 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
   console.log('MarkdownMessage content preview:', content?.substring(0, 200) || 'NO CONTENT');
   console.log('MarkdownMessage contains ![Generated Image]:', content?.includes('![Generated Image]') || false);
   
+  // Extract image data directly from markdown before ReactMarkdown processes it
+  const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  const imageMatches = [];
+  let match;
+  while ((match = imageRegex.exec(content)) !== null) {
+    imageMatches.push({
+      fullMatch: match[0],
+      altText: match[1],
+      src: match[2]
+    });
+  }
+  
+  console.log('Direct regex image matches:', imageMatches.length);
+  imageMatches.forEach((img, index) => {
+    console.log(`Image ${index + 1}:`, {
+      altText: img.altText,
+      srcLength: img.src?.length || 0,
+      srcPreview: img.src?.substring(0, 100) || 'NO SRC',
+      isDataUri: img.src?.startsWith('data:image/') || false
+    });
+  });
+  
   return (
     <div className={`prose prose-sm max-w-none dark:prose-invert ${className}`}>
       <ReactMarkdown
@@ -40,36 +62,66 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
               </code>
             );
           },
-          img({ src, alt, ...props }) {
+          img({ src, alt, node, ...props }) {
             console.log('MarkdownMessage img component called');
-            console.log('Image alt text:', alt);
-            console.log('Image src type:', typeof src);
-            console.log('Image src length:', src?.length || 0);
-            console.log('Image src starts with data:image:', src?.startsWith('data:image/') || false);
+            console.log('Image props received:', { 
+              src: src?.substring(0, 100) + '...',
+              srcLength: src?.length || 0,
+              alt, 
+              nodeType: node?.tagName,
+              allProps: Object.keys(props)
+            });
             
-            if (src) {
-              console.log('Image src preview (first 100 chars):', src.substring(0, 100));
+            // If ReactMarkdown didn't parse the src correctly, try to find it manually
+            let actualSrc = src;
+            if (!src || src.trim() === '') {
+              console.log('ReactMarkdown failed to parse src, searching manually...');
+              
+              // Find the image in our pre-parsed matches
+              const matchingImage = imageMatches.find(img => 
+                img.altText === alt || 
+                (alt && img.altText.includes(alt)) ||
+                (alt === 'Generated Image' && img.altText === 'Generated Image')
+              );
+              
+              if (matchingImage) {
+                actualSrc = matchingImage.src;
+                console.log('Found matching image manually:', {
+                  srcLength: actualSrc?.length || 0,
+                  srcPreview: actualSrc?.substring(0, 100) || 'NO SRC'
+                });
+              }
             }
 
+            console.log('Final src to use:', {
+              srcLength: actualSrc?.length || 0,
+              srcPreview: actualSrc?.substring(0, 100) || 'NO SRC',
+              isDataUri: actualSrc?.startsWith('data:image/') || false
+            });
+
             // Check if src is empty or invalid
-            if (!src || src.trim() === '') {
+            if (!actualSrc || actualSrc.trim() === '') {
               console.error('Image src is empty or undefined');
               return (
                 <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
                   <p>Image failed to load: Empty source</p>
                   <p className="text-xs mt-1">Alt text: {alt || 'No alt text'}</p>
+                  <p className="text-xs">Available images: {imageMatches.length}</p>
+                  {imageMatches.length > 0 && (
+                    <p className="text-xs">First image src length: {imageMatches[0].src?.length || 0}</p>
+                  )}
                 </div>
               );
             }
 
             // Validate base64 data URI format
-            if (!src.startsWith('data:image/')) {
-              console.error('Invalid image src format. Expected data:image/, got:', src.substring(0, 50));
+            if (!actualSrc.startsWith('data:image/')) {
+              console.error('Invalid image src format. Expected data:image/, got:', actualSrc.substring(0, 50));
               return (
                 <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
                   <p>Image failed to load: Invalid format</p>
                   <p className="text-xs mt-1">Expected data:image/ prefix</p>
-                  <p className="text-xs">Got: {src.substring(0, 50)}...</p>
+                  <p className="text-xs">Got: {actualSrc.substring(0, 50)}...</p>
                 </div>
               );
             }
@@ -79,27 +131,27 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
             return (
               <div className="my-4">
                 <img 
-                  src={src} 
+                  src={actualSrc} 
                   alt={alt || 'Generated image'} 
                   className="max-w-full h-auto rounded-lg shadow-md" 
                   onError={(e) => {
                     console.error('Image failed to load in browser');
-                    console.error('Image src length:', src?.length || 0);
-                    console.error('Image src preview:', src?.substring(0, 100) || 'NO SRC');
+                    console.error('Image src length:', actualSrc?.length || 0);
+                    console.error('Image src preview:', actualSrc?.substring(0, 100) || 'NO SRC');
                     
                     // Replace with error message
                     const errorDiv = document.createElement('div');
                     errorDiv.className = 'border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600';
                     errorDiv.innerHTML = `
-                      <p>Failed to load image</p>
-                      <p class="text-xs mt-1">Source length: ${src?.length || 0}</p>
+                      <p>Failed to load image in browser</p>
+                      <p class="text-xs mt-1">Source length: ${actualSrc?.length || 0}</p>
                       <p class="text-xs">Alt: ${alt || 'No alt text'}</p>
                     `;
                     e.currentTarget.parentNode?.replaceChild(errorDiv, e.currentTarget);
                   }}
                   onLoad={() => {
                     console.log('Image loaded successfully!');
-                    console.log('Loaded image src length:', src?.length || 0);
+                    console.log('Loaded image src length:', actualSrc?.length || 0);
                   }}
                   {...props} 
                 />
