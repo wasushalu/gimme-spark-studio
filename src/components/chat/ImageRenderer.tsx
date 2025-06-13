@@ -15,6 +15,7 @@ export function ImageRenderer(props: ImageRendererProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [blobError, setBlobError] = useState<string | null>(null);
+  const [finalImageSrc, setFinalImageSrc] = useState<string | null>(null);
   const blobUrlRef = useRef<string | null>(null);
   
   console.log('ImageRenderer: All props received:', props);
@@ -42,7 +43,10 @@ export function ImageRenderer(props: ImageRendererProps) {
 
   // Convert large base64 images to blob URLs for better performance
   useEffect(() => {
-    if (!src || !src.startsWith('data:image/')) return;
+    if (!src || !src.startsWith('data:image/')) {
+      setFinalImageSrc(src);
+      return;
+    }
 
     // For large images (>500KB), convert to blob URL
     if (src.length > 500 * 1024) {
@@ -104,6 +108,7 @@ export function ImageRenderer(props: ImageRendererProps) {
         
         blobUrlRef.current = url;
         setBlobUrl(url);
+        setFinalImageSrc(url);
         setBlobError(null);
         console.log('ImageRenderer: Created blob URL successfully, blob size:', blob.size);
         
@@ -111,7 +116,11 @@ export function ImageRenderer(props: ImageRendererProps) {
         console.error('ImageRenderer: Error creating blob URL:', error);
         setBlobError(error.message);
         setBlobUrl(null);
+        setFinalImageSrc(src); // Fallback to original src
       }
+    } else {
+      // For smaller images, use original src
+      setFinalImageSrc(src);
     }
 
     // Cleanup function
@@ -126,12 +135,11 @@ export function ImageRenderer(props: ImageRendererProps) {
   const handleError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     console.error('ImageRenderer: Image onError event fired');
     console.error('ImageRenderer: Image failed to load in browser');
-    console.error('ImageRenderer: Original src length:', src?.length);
+    console.error('ImageRenderer: Final image src:', finalImageSrc?.substring(0, 100));
     console.error('ImageRenderer: Using blob URL:', !!blobUrl);
     console.error('ImageRenderer: Blob error:', blobError);
-    console.error('ImageRenderer: Image element src:', e.currentTarget.src?.substring(0, 100));
     setImageError(true);
-  }, [src, blobUrl, blobError]);
+  }, [finalImageSrc, blobUrl, blobError]);
 
   const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     console.log('ImageRenderer: Image loaded successfully!');
@@ -231,8 +239,16 @@ export function ImageRenderer(props: ImageRendererProps) {
     );
   }
 
-  // Use blob URL for large images, original src for smaller ones
-  const imageSrc = blobUrl || src;
+  // Wait for finalImageSrc to be set
+  if (!finalImageSrc) {
+    return (
+      <div className="my-4 text-center">
+        <div className="mb-2 text-sm text-muted-foreground">
+          Processing image... ({Math.round((src?.length || 0) / 1024)}KB)
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="my-4 text-center">
@@ -243,7 +259,7 @@ export function ImageRenderer(props: ImageRendererProps) {
         </div>
       )}
       <img 
-        src={imageSrc} 
+        src={finalImageSrc} 
         alt={alt || 'Generated image'} 
         className="max-w-full h-auto rounded-lg shadow-lg mx-auto" 
         style={{ maxHeight: '512px' }}
