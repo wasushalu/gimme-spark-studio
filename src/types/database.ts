@@ -1,3 +1,4 @@
+
 export interface Profile {
   id: string;
   first_name?: string;
@@ -59,6 +60,7 @@ export interface AgentConfigVersion {
       image: { provider: string; model: string };
       audio: { provider: string; model: string };
       video: { provider: string; model: string };
+      vision: { provider: string; model: string };
     };
     generation: {
       max_context_tokens: number;

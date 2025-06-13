@@ -14,14 +14,20 @@ export async function generateImage(prompt: string, config: any, openaiApiKey: s
       size: '1024x1024'
     };
 
-    // Add model-specific parameters
+    // Add model-specific parameters for better quality
     if (imageModel === 'gpt-image-1') {
-      // gpt-image-1 specific parameters (no response_format, always returns base64)
-      requestBody.quality = 'high'; // gpt-image-1 uses: low, medium, high, auto
-    } else {
-      // dall-e models
+      // gpt-image-1 specific parameters for high quality output
+      requestBody.quality = 'high';
+      requestBody.output_format = 'png';
+    } else if (imageModel.includes('dall-e-3')) {
+      // dall-e-3 parameters
       requestBody.response_format = 'b64_json';
-      requestBody.quality = 'standard'; // dall-e uses: standard, hd
+      requestBody.quality = 'hd';
+      requestBody.style = 'vivid';
+    } else {
+      // dall-e-2 fallback
+      requestBody.response_format = 'b64_json';
+      requestBody.quality = 'standard';
     }
 
     console.log('Image generation request body:', requestBody);
@@ -43,38 +49,26 @@ export async function generateImage(prompt: string, config: any, openaiApiKey: s
 
     const data = await response.json();
     console.log('Image generation response received');
-    console.log('Response data structure:', Object.keys(data));
     
     // Handle the response based on model type
     if (data.data && data.data[0]) {
       const imageData = data.data[0];
-      console.log('Image data keys:', Object.keys(imageData));
       
       if (imageModel === 'gpt-image-1') {
         // gpt-image-1 returns base64 directly in the b64_json field
         if (imageData.b64_json) {
           const base64Data = imageData.b64_json;
-          console.log('Base64 data length for gpt-image-1:', base64Data.length);
-          // Ensure we have proper base64 data URI format
           const imageUrl = base64Data.startsWith('data:') ? base64Data : `data:image/png;base64,${base64Data}`;
-          console.log('Final image URL format for gpt-image-1:', imageUrl.substring(0, 50) + '...');
+          console.log('Generated image with gpt-image-1, size:', base64Data.length);
           return imageUrl;
-        } else {
-          console.error('gpt-image-1 response missing b64_json field:', imageData);
-          return null;
         }
       } else {
         // dall-e models return base64 in b64_json field when response_format is b64_json
         if (imageData.b64_json) {
           const base64Data = imageData.b64_json;
-          console.log('Base64 data length for DALL-E:', base64Data.length);
-          // Ensure we have proper base64 data URI format
           const imageUrl = base64Data.startsWith('data:') ? base64Data : `data:image/png;base64,${base64Data}`;
-          console.log('Final image URL format for DALL-E:', imageUrl.substring(0, 50) + '...');
+          console.log('Generated image with DALL-E, size:', base64Data.length);
           return imageUrl;
-        } else {
-          console.error('DALL-E response missing b64_json field:', imageData);
-          return null;
         }
       }
     }
@@ -88,6 +82,7 @@ export async function generateImage(prompt: string, config: any, openaiApiKey: s
 }
 
 export function processImageGenerationRequests(aiResponse: string): string[] {
+  // Enhanced regex to catch more natural image generation requests
   const imageGenerationRegex = /\[GENERATE_IMAGE:\s*([^\]]+)\]/g;
   const imageRequests = [];
   let match;
@@ -102,16 +97,12 @@ export function processImageGenerationRequests(aiResponse: string): string[] {
 
 export function replaceImageSyntaxWithImage(response: string, imagePrompt: string, imageUrl: string): string {
   console.log('Replacing image syntax for prompt:', imagePrompt);
-  console.log('With image URL (first 100 chars):', imageUrl.substring(0, 100) + '...');
   
   const originalSyntax = `[GENERATE_IMAGE: ${imagePrompt}]`;
   const replacement = `![Generated Image](${imageUrl})\n\n*Generated image: ${imagePrompt}*`;
   
-  console.log('Original syntax:', originalSyntax);
-  console.log('Replacement syntax:', replacement.substring(0, 100) + '...');
-  
   const updatedResponse = response.replace(originalSyntax, replacement);
-  console.log('Response updated:', updatedResponse !== response);
+  console.log('Image replacement successful:', updatedResponse !== response);
   
   return updatedResponse;
 }
@@ -123,4 +114,29 @@ export function replaceImageSyntaxWithError(response: string, imagePrompt: strin
   const replacement = `*[Image generation failed: ${imagePrompt}]*`;
   
   return response.replace(originalSyntax, replacement);
+}
+
+// Enhanced function to suggest when agents should generate images
+export function enhancePromptForImageGeneration(systemPrompt: string): string {
+  const imageGenerationGuidance = `
+
+When responding to user requests, you can generate images to enhance your responses using the syntax: [GENERATE_IMAGE: detailed description]
+
+Generate images when:
+- User explicitly asks for an image or visual content
+- User mentions food, recipes, or cooking (generate food images)
+- User asks about visual concepts, designs, or creative ideas
+- User requests examples that would benefit from visual representation
+- User asks about places, locations, or travel
+- The response would be significantly enhanced with a visual element
+
+For image prompts, be specific and descriptive. Include:
+- Visual style (photographic, illustration, artistic style)
+- Composition and framing details
+- Colors, lighting, and mood
+- Specific details about the subject matter
+
+Example: Instead of [GENERATE_IMAGE: butter chicken], use [GENERATE_IMAGE: A professional food photography shot of creamy butter chicken curry in a dark ceramic bowl, garnished with fresh cilantro and served with naan bread, warm golden lighting, appetizing presentation]`;
+
+  return systemPrompt + imageGenerationGuidance;
 }
