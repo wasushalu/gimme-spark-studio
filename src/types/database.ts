@@ -155,3 +155,7 @@ export interface KnowledgeBaseChunk {
   metadata: Record<string, any>;
   created_at: string;
 }
+
+// Define agent types for consistency
+export type AgentType = 'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio';
+export type AgentRole = 'user' | 'assistant' | 'system';

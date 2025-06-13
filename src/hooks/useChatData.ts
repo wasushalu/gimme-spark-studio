@@ -3,9 +3,10 @@ import { useState, useMemo, useCallback } from 'react';
 import { useChat } from './useChat';
 import { useAuth } from './useAuth';
 import { agents } from '@/components/agents/AgentSelector';
+import type { AgentType } from '@/types/database';
 
 export function useChatData() {
-  const [activeAgent, setActiveAgent] = useState<'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio'>('gimmebot');
+  const [activeAgent, setActiveAgent] = useState<AgentType>('gimmebot');
   const { user } = useAuth();
   
   const { 
@@ -27,16 +28,20 @@ export function useChatData() {
     console.log('=== MESSAGE SOURCE SELECTION ===');
     console.log('User authenticated:', !!user);
     console.log('Using guest messages:', !user);
-    console.log('Source messages count:', sourceMessages.length);
+    console.log('Source messages count:', sourceMessages?.length || 0);
     console.log('Source messages:', sourceMessages);
-    return sourceMessages;
+    return sourceMessages || [];
   }, [user, dbMessages, guestMessages]);
 
   // Get the base agent info (name, description, icon) from the static config
-  const baseAgentInfo = useMemo(() => 
-    agents.find(agent => agent.id === activeAgent) || agents[0], 
-    [activeAgent]
-  );
+  const baseAgentInfo = useMemo(() => {
+    const agent = agents.find(agent => agent.id === activeAgent);
+    if (!agent) {
+      console.warn(`useChatData: Agent ${activeAgent} not found in agents list, using fallback`);
+      return agents[0]; // fallback to gimmebot
+    }
+    return agent;
+  }, [activeAgent]);
 
   // Get the dynamic welcome message from the agent config, or fallback to a default
   const welcomeMessage = useMemo(() => {
@@ -80,12 +85,20 @@ export function useChatData() {
     console.log('=== AGENT SELECTION ===');
     console.log('Switching to agent:', agentId);
     
+    // Validate agent ID
+    const validAgents: AgentType[] = ['gimmebot', 'studio', 'neutral_chat', 'creative_concept'];
+    if (!validAgents.includes(agentId as AgentType)) {
+      console.error('Invalid agent ID:', agentId);
+      return;
+    }
+    
     // Clear guest messages when switching agents
     if (!user && clearGuestMessages) {
+      console.log('Clearing guest messages for agent switch');
       clearGuestMessages();
     }
     
-    setActiveAgent(agentId as 'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio');
+    setActiveAgent(agentId as AgentType);
   }, [user, clearGuestMessages]);
 
   const handleSendMessage = useCallback((message: string) => {
@@ -93,6 +106,11 @@ export function useChatData() {
     console.log('Message to send:', message);
     console.log('Current loading state:', isLoading);
     console.log('Messages loading state:', messagesLoading);
+    
+    if (!message.trim()) {
+      console.warn('Empty message attempted to send');
+      return;
+    }
     
     sendMessage({ content: message });
   }, [sendMessage, isLoading, messagesLoading]);
@@ -102,12 +120,24 @@ export function useChatData() {
     console.log('=== TRANSFORMING MESSAGES FOR UI ===');
     console.log('Raw messages:', messages);
     
-    const transformed = messages.map(msg => ({
-      id: msg.id,
-      role: msg.role as 'user' | 'assistant',
-      content: msg.content,
-      timestamp: new Date(msg.created_at),
-    }));
+    if (!Array.isArray(messages)) {
+      console.error('Messages is not an array:', messages);
+      return [];
+    }
+    
+    const transformed = messages.map(msg => {
+      if (!msg || typeof msg !== 'object') {
+        console.error('Invalid message object:', msg);
+        return null;
+      }
+      
+      return {
+        id: msg.id || `temp-${Date.now()}-${Math.random()}`,
+        role: (msg.role as 'user' | 'assistant') || 'user',
+        content: msg.content || '',
+        timestamp: new Date(msg.created_at || Date.now()),
+      };
+    }).filter(Boolean);
     
     console.log('Transformed messages for UI:', transformed);
     return transformed;
