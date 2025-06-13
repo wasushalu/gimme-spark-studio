@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { getExtractedImage, isExtractedImageId } from '@/utils/imagePreprocessor';
 
 interface ImageRendererProps {
@@ -12,6 +12,8 @@ interface ImageRendererProps {
 export function ImageRenderer(props: ImageRendererProps) {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
   
   console.log('ImageRenderer: All props received:', props);
   
@@ -72,36 +74,63 @@ export function ImageRenderer(props: ImageRendererProps) {
     );
   }
 
-  // Additional validation for base64 content
-  try {
-    const base64Part = src.split(',')[1];
-    if (!base64Part || base64Part.length < 100) {
-      console.error('ImageRenderer: Base64 content appears to be too short or missing');
-      return (
-        <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
-          <p>Image failed to load: Invalid base64 content</p>
-          <p className="text-xs mt-1">Base64 length: {base64Part?.length || 0}</p>
-        </div>
-      );
+  // Convert large base64 images to blob URLs for better performance
+  useEffect(() => {
+    if (!src || !src.startsWith('data:image/')) return;
+
+    // For large images (>1MB), convert to blob URL
+    if (src.length > 1024 * 1024) {
+      console.log('ImageRenderer: Converting large image to blob URL, size:', src.length);
+      
+      try {
+        // Extract the base64 data
+        const base64Data = src.split(',')[1];
+        const mimeType = src.split(';')[0].split(':')[1];
+        
+        // Convert to binary
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        
+        // Create blob and URL
+        const blob = new Blob([byteArray], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        
+        // Clean up previous blob URL
+        if (blobUrlRef.current) {
+          URL.revokeObjectURL(blobUrlRef.current);
+        }
+        
+        blobUrlRef.current = url;
+        setBlobUrl(url);
+        console.log('ImageRenderer: Created blob URL successfully');
+        
+      } catch (error) {
+        console.error('ImageRenderer: Error creating blob URL:', error);
+        setImageError(true);
+      }
     }
-  } catch (error) {
-    console.error('ImageRenderer: Error parsing base64:', error);
-    return (
-      <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
-        <p>Image failed to load: Base64 parsing error</p>
-        <p className="text-xs mt-1">Error: {(error as Error).message}</p>
-      </div>
-    );
-  }
+
+    // Cleanup function
+    return () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, [src]);
 
   console.log('ImageRenderer: Image validation passed, rendering img element');
 
   const handleError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     console.error('ImageRenderer: Image onError event fired');
     console.error('ImageRenderer: Image failed to load in browser, src length:', src?.length);
-    console.error('ImageRenderer: Image src preview:', src?.substring(0, 100));
+    console.error('ImageRenderer: Using blob URL:', !!blobUrl);
     setImageError(true);
-  }, [src]);
+  }, [src, blobUrl]);
 
   const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     console.log('ImageRenderer: Image loaded successfully!');
@@ -121,6 +150,7 @@ export function ImageRenderer(props: ImageRendererProps) {
         <p className="text-xs mt-1">Source length: {src?.length || 0}</p>
         <p className="text-xs">Alt: {alt || 'No alt text'}</p>
         <p className="text-xs">Preview: {src?.substring(0, 50) || 'No preview'}...</p>
+        <p className="text-xs">Using blob URL: {blobUrl ? 'Yes' : 'No'}</p>
         <div className="mt-2">
           <button 
             onClick={() => {
@@ -136,15 +166,19 @@ export function ImageRenderer(props: ImageRendererProps) {
     );
   }
 
+  // Use blob URL for large images, original src for smaller ones
+  const imageSrc = blobUrl || src;
+
   return (
     <div className="my-4 text-center">
       {!imageLoaded && (
         <div className="mb-2 text-sm text-muted-foreground">
           Loading image... ({Math.round((src?.length || 0) / 1024)}KB)
+          {blobUrl && <span className="ml-2 text-xs">(Using optimized blob URL)</span>}
         </div>
       )}
       <img 
-        src={src} 
+        src={imageSrc} 
         alt={alt || 'Generated image'} 
         className="max-w-full h-auto rounded-lg shadow-lg mx-auto" 
         style={{ maxHeight: '512px' }}
