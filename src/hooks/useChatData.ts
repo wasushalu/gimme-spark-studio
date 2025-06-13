@@ -59,14 +59,14 @@ export function useChatData() {
   const handleAgentSelect = useCallback((agentId: string) => {
     const newAgent = agentId as AgentType;
     console.log('Switching from', activeAgent, 'to', newAgent);
+    console.log('Current guest messages for', activeAgent, ':', guestMessages.length);
     
-    // Simply switch to the new agent - don't clear conversations
-    // Each agent maintains its own conversation thread
+    // Simply switch to the new agent - each agent maintains its own conversation thread
     if (newAgent !== activeAgent) {
       setActiveAgent(newAgent);
-      // Don't call startNewConversation() here - let each agent keep its own thread
+      console.log('Agent switched to:', newAgent);
     }
-  }, [activeAgent]);
+  }, [activeAgent, guestMessages.length]);
 
   const handleSendMessage = useCallback(async (content: string) => {
     console.log('useChatData: Sending message with agent type:', {
@@ -90,6 +90,8 @@ export function useChatData() {
 
   // Always use guest messages since no auth is required
   const displayMessages = guestMessages;
+  
+  console.log('useChatData: Current agent:', activeAgent, 'Messages count:', displayMessages.length);
 
   return {
     activeAgent,

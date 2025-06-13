@@ -8,15 +8,18 @@ export interface LocalMessage {
   created_at: string;
 }
 
-// Store messages per agent type for guest users
-const guestMessageStore: Record<string, LocalMessage[]> = {};
+// Store messages per agent type for guest users - using a more robust storage approach
+const guestMessageStores = new Map<string, LocalMessage[]>();
 
 export function useGuestMessages(agentType?: string) {
   const storageKey = agentType || 'default';
   
-  // Initialize with stored messages for this agent
+  // Initialize with stored messages for this agent, ensuring each agent has its own isolated store
   const [guestMessages, setGuestMessages] = useState<LocalMessage[]>(() => {
-    return guestMessageStore[storageKey] || [];
+    if (!guestMessageStores.has(storageKey)) {
+      guestMessageStores.set(storageKey, []);
+    }
+    return guestMessageStores.get(storageKey) || [];
   });
 
   const addGuestMessage = useCallback((message: LocalMessage) => {
@@ -24,8 +27,8 @@ export function useGuestMessages(agentType?: string) {
     
     setGuestMessages(prev => {
       const updated = [...prev, message];
-      // Store in memory for this agent
-      guestMessageStore[storageKey] = updated;
+      // Store in the isolated Map for this agent
+      guestMessageStores.set(storageKey, updated);
       return updated;
     });
   }, [storageKey]);
@@ -33,8 +36,8 @@ export function useGuestMessages(agentType?: string) {
   const clearGuestMessages = useCallback(() => {
     console.log('Clearing guest messages for agent:', storageKey);
     setGuestMessages([]);
-    // Clear from memory store
-    guestMessageStore[storageKey] = [];
+    // Clear from the isolated Map store
+    guestMessageStores.set(storageKey, []);
   }, [storageKey]);
 
   return {
