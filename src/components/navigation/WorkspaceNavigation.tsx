@@ -181,15 +181,6 @@ export function WorkspaceNavigation({
               Go
             </Button>
           </div>
-          
-          <div className="flex gap-3">
-            <Button variant="outline" size="sm">
-              Login
-            </Button>
-            <Button size="sm">
-              Sign Up
-            </Button>
-          </div>
         </div>
       </div>
 

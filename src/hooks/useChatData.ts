@@ -31,7 +31,7 @@ export function useChatData() {
   // Map creative_concept to studio for backend compatibility
   const backendAgentType = activeAgent === 'creative_concept' ? 'studio' : activeAgent;
   
-  const { needsAuth, canUseAgent, user } = useChatAuth(backendAgentType);
+  const { needsAuth, canUseAgent } = useChatAuth(backendAgentType);
   const { data: agentConfig } = useChatConfig(backendAgentType, canUseAgent);
   
   const {
@@ -74,8 +74,6 @@ export function useChatData() {
   }, [activeAgent, startNewConversation]);
 
   const handleSendMessage = useCallback(async (content: string) => {
-    if (!canUseAgent) return;
-    
     console.log('useChatData: Sending message with agent type:', {
       agentType: backendAgentType,
       hasConfig: !!agentConfig,
@@ -85,7 +83,7 @@ export function useChatData() {
     
     // Just pass the content - the useChat hook will handle the agent config internally
     await sendMessage({ content });
-  }, [canUseAgent, backendAgentType, agentConfig, sendMessage, currentConversationId]);
+  }, [backendAgentType, agentConfig, sendMessage, currentConversationId]);
 
   // Get current agent details with fallback welcome messages
   const currentAgent: Agent = {
@@ -95,18 +93,18 @@ export function useChatData() {
     welcomeMessage: agentConfig?.settings?.welcome_message || getDefaultWelcomeMessage(activeAgent)
   };
 
-  // Return the appropriate messages based on user authentication status
-  const displayMessages = user ? messages : guestMessages;
+  // Always use guest messages since no auth is required
+  const displayMessages = guestMessages;
 
   return {
     activeAgent,
-    messages: displayMessages, // Use guest messages for unauthenticated users
+    messages: displayMessages,
     isLoading: chatLoading || messagesLoading,
     currentAgent,
     handleAgentSelect,
     handleSendMessage,
-    canUseAgent,
-    needsAuth,
+    canUseAgent: true, // Always true since no auth required
+    needsAuth: false, // Always false since no auth required
   };
 }
 
