@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { getExtractedImage, isExtractedImageId } from '@/utils/imagePreprocessor';
 
@@ -114,7 +113,7 @@ export function ImageRenderer(props: ImageRendererProps) {
       // For smaller images, use original src
       setFinalImageSrc(src);
     }
-  }, [src]); // Only depend on src to avoid re-processing
+  }, [src]);
 
   // Cleanup function
   useEffect(() => {
@@ -241,7 +240,7 @@ export function ImageRenderer(props: ImageRendererProps) {
       />
       {alt && alt !== 'Generated image' && (
         <p className="text-sm text-muted-foreground mt-2 italic">{alt}</p>
-      </div>
-    );
-  )
+      )}
+    </div>
+  );
 }
