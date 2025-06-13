@@ -108,6 +108,13 @@ export function useSendMessage(
 
       console.log('=== EDGE FUNCTION SUCCESS ===');
       console.log('AI response received from edge function:', aiResponse);
+      console.log('AI response type:', typeof aiResponse?.response);
+      console.log('AI response content length:', aiResponse?.response?.length || 0);
+      
+      // Log first 200 characters to check for image markdown
+      if (aiResponse?.response) {
+        console.log('AI response content preview:', aiResponse.response.substring(0, 200));
+      }
 
       if (!aiResponse || !aiResponse.response) {
         console.error('=== INVALID AI RESPONSE ===');
@@ -124,18 +131,20 @@ export function useSendMessage(
           created_at: new Date().toISOString(),
         };
         console.log('Adding AI message to guest state:', aiMessage);
+        console.log('AI message content length:', aiMessage.content.length);
+        console.log('AI message contains ![Generated Image]:', aiMessage.content.includes('![Generated Image]'));
         addGuestMessage(aiMessage);
       }
 
       console.log('=== FRONTEND MESSAGE SEND SUCCESS ===');
-      console.log('Final AI response content:', aiResponse.response);
+      console.log('Final AI response content length:', aiResponse.response.length);
 
       return { userMessage, aiResponse };
     },
     onSuccess: (data) => {
       console.log('=== MUTATION SUCCESS ===');
       console.log('Message sent successfully');
-      console.log('Success data:', data);
+      console.log('Success data response length:', data?.aiResponse?.response?.length || 0);
       
       // Only invalidate queries for authenticated users
       if (user) {

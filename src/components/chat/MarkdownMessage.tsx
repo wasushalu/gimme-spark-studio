@@ -1,4 +1,3 @@
-
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -10,6 +9,10 @@ interface MarkdownMessageProps {
 }
 
 export function MarkdownMessage({ content, className = '' }: MarkdownMessageProps) {
+  console.log('MarkdownMessage received content length:', content?.length || 0);
+  console.log('MarkdownMessage content preview:', content?.substring(0, 200) || 'NO CONTENT');
+  console.log('MarkdownMessage contains ![Generated Image]:', content?.includes('![Generated Image]') || false);
+  
   return (
     <div className={`prose prose-sm max-w-none dark:prose-invert ${className}`}>
       <ReactMarkdown
@@ -38,48 +41,69 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
             );
           },
           img({ src, alt, ...props }) {
-            console.log('MarkdownMessage img component called with src:', src?.substring(0, 100) + '...');
+            console.log('MarkdownMessage img component called');
+            console.log('Image alt text:', alt);
             console.log('Image src type:', typeof src);
             console.log('Image src length:', src?.length || 0);
+            console.log('Image src starts with data:image:', src?.startsWith('data:image/') || false);
             
+            if (src) {
+              console.log('Image src preview (first 100 chars):', src.substring(0, 100));
+            }
+
             // Check if src is empty or invalid
             if (!src || src.trim() === '') {
               console.error('Image src is empty or undefined');
               return (
                 <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
                   <p>Image failed to load: Empty source</p>
+                  <p className="text-xs mt-1">Alt text: {alt || 'No alt text'}</p>
                 </div>
               );
             }
 
             // Validate base64 data URI format
             if (!src.startsWith('data:image/')) {
-              console.error('Invalid image src format:', src.substring(0, 50));
+              console.error('Invalid image src format. Expected data:image/, got:', src.substring(0, 50));
               return (
                 <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
                   <p>Image failed to load: Invalid format</p>
+                  <p className="text-xs mt-1">Expected data:image/ prefix</p>
+                  <p className="text-xs">Got: {src.substring(0, 50)}...</p>
                 </div>
               );
             }
 
+            console.log('Image validation passed, rendering image element');
+            
             return (
-              <img 
-                src={src} 
-                alt={alt || 'Generated image'} 
-                className="max-w-full h-auto rounded-lg shadow-md my-4" 
-                onError={(e) => {
-                  console.error('Image failed to load:', src?.substring(0, 100) + '...');
-                  // Replace with error message instead of hiding
-                  const errorDiv = document.createElement('div');
-                  errorDiv.className = 'border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600';
-                  errorDiv.innerHTML = '<p>Failed to load image</p>';
-                  e.currentTarget.parentNode?.replaceChild(errorDiv, e.currentTarget);
-                }}
-                onLoad={() => {
-                  console.log('Image loaded successfully, src length:', src?.length || 0);
-                }}
-                {...props} 
-              />
+              <div className="my-4">
+                <img 
+                  src={src} 
+                  alt={alt || 'Generated image'} 
+                  className="max-w-full h-auto rounded-lg shadow-md" 
+                  onError={(e) => {
+                    console.error('Image failed to load in browser');
+                    console.error('Image src length:', src?.length || 0);
+                    console.error('Image src preview:', src?.substring(0, 100) || 'NO SRC');
+                    
+                    // Replace with error message
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600';
+                    errorDiv.innerHTML = `
+                      <p>Failed to load image</p>
+                      <p class="text-xs mt-1">Source length: ${src?.length || 0}</p>
+                      <p class="text-xs">Alt: ${alt || 'No alt text'}</p>
+                    `;
+                    e.currentTarget.parentNode?.replaceChild(errorDiv, e.currentTarget);
+                  }}
+                  onLoad={() => {
+                    console.log('Image loaded successfully!');
+                    console.log('Loaded image src length:', src?.length || 0);
+                  }}
+                  {...props} 
+                />
+              </div>
             );
           },
           h1: ({ children }) => (
