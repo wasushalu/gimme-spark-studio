@@ -17,11 +17,11 @@ export async function generateImage(prompt: string, config: any, openaiApiKey: s
     // Add model-specific parameters
     if (imageModel === 'gpt-image-1') {
       // gpt-image-1 specific parameters (no response_format, always returns base64)
-      requestBody.quality = 'standard';
+      requestBody.quality = 'high'; // gpt-image-1 uses: low, medium, high, auto
     } else {
       // dall-e models
       requestBody.response_format = 'b64_json';
-      requestBody.quality = 'standard';
+      requestBody.quality = 'standard'; // dall-e uses: standard, hd
     }
 
     console.log('Image generation request body:', requestBody);
