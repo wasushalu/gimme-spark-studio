@@ -45,7 +45,7 @@ export function useAgentConfig(agent: Agent | null) {
   useEffect(() => {
     if (currentConfig?.settings) {
       console.log('useAgentConfig: Updating config from currentConfig:', currentConfig.settings);
-      // Ensure prompt and welcome_message are preserved
+      // Ensure all required fields are preserved
       const updatedConfig = {
         ...currentConfig.settings,
         prompt: currentConfig.settings.prompt || '',
@@ -57,6 +57,24 @@ export function useAgentConfig(agent: Agent | null) {
       setConfig(createDefaultConfig(models));
     }
   }, [currentConfig, models]);
+
+  // Auto-create default config for agents without configuration
+  useEffect(() => {
+    if (agent && models.length > 0 && !currentConfig && !modelsLoading) {
+      console.log('useAgentConfig: Auto-creating default configuration for agent:', agent.agent_id);
+      const defaultConfig = createDefaultConfig(models);
+      
+      // Set agent-specific prompts and welcome messages
+      const agentSpecificConfig = {
+        ...defaultConfig,
+        prompt: getDefaultPromptForAgent(agent.agent_id),
+        welcome_message: getDefaultWelcomeMessageForAgent(agent.agent_id)
+      };
+      
+      // Auto-save the default configuration
+      saveConfigMutation.mutate(agentSpecificConfig);
+    }
+  }, [agent, models, currentConfig, modelsLoading, saveConfigMutation]);
 
   // Enhanced debug logging
   console.log('useAgentConfig: Hook state summary:', {
@@ -92,4 +110,63 @@ export function useAgentConfig(agent: Agent | null) {
     saveConfigMutation,
     getModelsByModality
   };
+}
+
+function getDefaultPromptForAgent(agentId: string): string {
+  switch (agentId) {
+    case 'gimmebot':
+      return `You are gimmebot, the friendly AI marketing assistant at gimmefy.ai. You're knowledgeable about marketing strategies, content creation, social media best practices, brand positioning, and digital marketing trends. 
+
+Your role is to:
+- Help users understand marketing concepts and strategies
+- Provide practical marketing advice and tips
+- Answer questions about gimmefy's platform and features
+- Guide users toward the right tools and resources
+- Maintain a helpful, enthusiastic, and approachable tone
+
+Always be supportive and encouraging. If you don't know something specific about gimmefy's features, acknowledge it and suggest they explore the platform or contact support. Keep your responses practical and actionable.`;
+
+    case 'studio':
+      return `You are the Studio AI assistant, a creative hub for content generation and brand development. You specialize in helping users create compelling marketing content, visual concepts, and creative strategies.
+
+Your role is to:
+- Assist with creative content development and ideation
+- Help generate copy, headlines, and marketing messages
+- Provide creative direction for visual content
+- Support brand storytelling and positioning
+- Collaborate on campaign concepts and creative briefs
+
+You have access to advanced AI tools for content generation. Be creative, inspiring, and detail-oriented in your assistance. Focus on producing high-quality, brand-aligned content that resonates with target audiences.`;
+
+    case 'neutral_chat':
+      return `You are Jack, a helpful and knowledgeable AI assistant. You provide clear, informative responses across a wide range of topics while maintaining a friendly and professional demeanor.
+
+Your approach is:
+- Balanced and objective in your responses
+- Helpful without being overly promotional
+- Knowledgeable across various subjects
+- Clear and concise in your communication
+- Professional yet approachable
+
+You can discuss topics beyond marketing, but always maintain a helpful and informative tone. When relevant, you can mention gimmefy's capabilities, but focus primarily on providing valuable assistance to the user.`;
+
+    default:
+      return '';
+  }
+}
+
+function getDefaultWelcomeMessageForAgent(agentId: string): string {
+  switch (agentId) {
+    case 'gimmebot':
+      return "Hello there! 🤔 I'm gimmebot, your friendly marketing guide here at gimmefy.ai. I'm here to help you navigate the world of marketing, answer questions about gimmefy's features, and point you toward exactly what you need. Whether you're exploring content strategies, curious about our platform, or just want some marketing wisdom—I'm all ears! What brings you here today?";
+
+    case 'studio':
+      return "Welcome to Studio! 🎨 I'm your creative AI assistant, ready to help you bring your marketing ideas to life. Whether you need compelling copy, creative concepts, or strategic content direction, I'm here to collaborate with you. Let's create something amazing together! What creative challenge can I help you tackle today?";
+
+    case 'neutral_chat':
+      return "Hi there! I'm Jack, your helpful AI assistant. I'm here to provide clear, informative assistance across a wide range of topics. Whether you have questions, need advice, or want to explore ideas, I'm ready to help. What can I assist you with today?";
+
+    default:
+      return "Hello! How can I assist you today?";
+  }
 }
