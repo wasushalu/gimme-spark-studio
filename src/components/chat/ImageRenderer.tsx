@@ -13,6 +13,7 @@ export function ImageRenderer(props: ImageRendererProps) {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [blobError, setBlobError] = useState<string | null>(null);
   const blobUrlRef = useRef<string | null>(null);
   
   console.log('ImageRenderer: All props received:', props);
@@ -78,25 +79,57 @@ export function ImageRenderer(props: ImageRendererProps) {
   useEffect(() => {
     if (!src || !src.startsWith('data:image/')) return;
 
-    // For large images (>1MB), convert to blob URL
-    if (src.length > 1024 * 1024) {
+    // For large images (>500KB), convert to blob URL
+    if (src.length > 500 * 1024) {
       console.log('ImageRenderer: Converting large image to blob URL, size:', src.length);
       
       try {
-        // Extract the base64 data
-        const base64Data = src.split(',')[1];
-        const mimeType = src.split(';')[0].split(':')[1];
-        
-        // Convert to binary
-        const byteCharacters = atob(base64Data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        // Validate base64 format more thoroughly
+        const parts = src.split(',');
+        if (parts.length !== 2) {
+          throw new Error('Invalid data URI format');
         }
-        const byteArray = new Uint8Array(byteNumbers);
+
+        const header = parts[0];
+        const base64Data = parts[1];
         
-        // Create blob and URL
-        const blob = new Blob([byteArray], { type: mimeType });
+        // Extract MIME type
+        const mimeMatch = header.match(/data:([^;]+)/);
+        if (!mimeMatch) {
+          throw new Error('Could not extract MIME type');
+        }
+        const mimeType = mimeMatch[1];
+        
+        // Validate base64 data
+        if (!base64Data || base64Data.length === 0) {
+          throw new Error('No base64 data found');
+        }
+
+        // Test if base64 is valid
+        try {
+          const testDecode = atob(base64Data.substring(0, 100)); // Test first 100 chars
+        } catch (e) {
+          throw new Error('Invalid base64 encoding');
+        }
+        
+        // Convert to binary in chunks to avoid memory issues
+        const chunkSize = 8192;
+        const chunks = [];
+        
+        for (let i = 0; i < base64Data.length; i += chunkSize) {
+          const chunk = base64Data.substring(i, i + chunkSize);
+          const binaryChunk = atob(chunk);
+          const byteNumbers = new Array(binaryChunk.length);
+          
+          for (let j = 0; j < binaryChunk.length; j++) {
+            byteNumbers[j] = binaryChunk.charCodeAt(j);
+          }
+          
+          chunks.push(new Uint8Array(byteNumbers));
+        }
+        
+        // Create blob from chunks
+        const blob = new Blob(chunks, { type: mimeType });
         const url = URL.createObjectURL(blob);
         
         // Clean up previous blob URL
@@ -106,11 +139,13 @@ export function ImageRenderer(props: ImageRendererProps) {
         
         blobUrlRef.current = url;
         setBlobUrl(url);
-        console.log('ImageRenderer: Created blob URL successfully');
+        setBlobError(null);
+        console.log('ImageRenderer: Created blob URL successfully, blob size:', blob.size);
         
       } catch (error) {
         console.error('ImageRenderer: Error creating blob URL:', error);
-        setImageError(true);
+        setBlobError(error.message);
+        setBlobUrl(null);
       }
     }
 
@@ -123,14 +158,15 @@ export function ImageRenderer(props: ImageRendererProps) {
     };
   }, [src]);
 
-  console.log('ImageRenderer: Image validation passed, rendering img element');
-
   const handleError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     console.error('ImageRenderer: Image onError event fired');
-    console.error('ImageRenderer: Image failed to load in browser, src length:', src?.length);
+    console.error('ImageRenderer: Image failed to load in browser');
+    console.error('ImageRenderer: Original src length:', src?.length);
     console.error('ImageRenderer: Using blob URL:', !!blobUrl);
+    console.error('ImageRenderer: Blob error:', blobError);
+    console.error('ImageRenderer: Image element src:', e.currentTarget.src?.substring(0, 100));
     setImageError(true);
-  }, [src, blobUrl]);
+  }, [src, blobUrl, blobError]);
 
   const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     console.log('ImageRenderer: Image loaded successfully!');
@@ -142,6 +178,30 @@ export function ImageRenderer(props: ImageRendererProps) {
     setImageError(false);
   }, []);
 
+  // Show error state if blob creation failed
+  if (blobError) {
+    return (
+      <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
+        <p>Failed to process image data</p>
+        <p className="text-xs mt-1">Blob creation error: {blobError}</p>
+        <p className="text-xs">Source length: {src?.length || 0}</p>
+        <p className="text-xs">Alt: {alt || 'No alt text'}</p>
+        <div className="mt-2">
+          <button 
+            onClick={() => {
+              setBlobError(null);
+              setImageError(false);
+              setImageLoaded(false);
+            }}
+            className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+          >
+            Retry Process
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Show error state if image failed to load
   if (imageError) {
     return (
@@ -151,11 +211,13 @@ export function ImageRenderer(props: ImageRendererProps) {
         <p className="text-xs">Alt: {alt || 'No alt text'}</p>
         <p className="text-xs">Preview: {src?.substring(0, 50) || 'No preview'}...</p>
         <p className="text-xs">Using blob URL: {blobUrl ? 'Yes' : 'No'}</p>
+        <p className="text-xs">Blob error: {blobError || 'None'}</p>
         <div className="mt-2">
           <button 
             onClick={() => {
               setImageError(false);
               setImageLoaded(false);
+              setBlobError(null);
             }}
             className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
           >
