@@ -143,16 +143,23 @@ export function useWorkspaceData() {
     }
   }, [workspaces, selectedWorkspace]);
 
-  // Add workspace mutation
+  // Add workspace mutation - simplified to not create workspace membership
   const addWorkspaceMutation = useMutation({
     mutationFn: async (name: string) => {
+      console.log('Creating workspace with name:', name);
+      
       const { data, error } = await supabase
         .from('workspaces')
         .insert([{ name }])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating workspace:', error);
+        throw error;
+      }
+      
+      console.log('Workspace created successfully:', data);
       return data;
     },
     onSuccess: (data) => {
