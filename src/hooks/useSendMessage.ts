@@ -31,42 +31,41 @@ export function useSendMessage(
       needsAuth,
       createConversation
     }: SendMessageParams) => {
-      console.log('=== FRONTEND MESSAGE SEND START ===');
-      console.log('Sending message:', content);
+      console.log('=== ISOLATED MESSAGE SEND START ===');
+      console.log('Sending message for isolated agent:', agentType);
+      console.log('Message content:', content);
       console.log('Is guest user:', !user);
       
-      // Check if agent requires authentication
       if (needsAuth && !user) {
         throw new Error('Please sign in to chat with this agent');
       }
 
       let activeConversationId = conversationId || currentConversationId;
 
-      // Create conversation if none exists and user is authenticated
       if (!activeConversationId && user) {
-        console.log('No conversation exists, creating new one');
+        console.log('Creating new isolated conversation for agent:', agentType);
         const conversation = await createConversation();
         activeConversationId = conversation.id;
       }
 
-      console.log('Using conversation ID:', activeConversationId);
+      console.log('Using isolated conversation ID for agent', agentType, ':', activeConversationId);
 
-      // For guest users, add user message to local state immediately
+      // For guest users, add user message to isolated local state
       if (!user) {
         const userMessage: LocalMessage = {
-          id: `temp-user-${Date.now()}`,
+          id: `temp-user-${agentType}-${Date.now()}`, // Include agent type in ID for isolation
           role: 'user',
           content,
           created_at: new Date().toISOString(),
         };
-        console.log('Adding user message to guest state:', userMessage);
+        console.log('Adding user message to isolated guest state for agent', agentType, ':', userMessage);
         addGuestMessage(userMessage);
       }
 
       // For authenticated users, save user message to database
       let userMessage = null;
       if (user && activeConversationId) {
-        console.log('Saving user message to database...');
+        console.log('Saving user message to database for agent:', agentType);
         const { data: savedMessage, error: userError } = await supabase
           .from('chat_messages')
           .insert({
@@ -78,17 +77,17 @@ export function useSendMessage(
           .single();
 
         if (userError) {
-          console.error('Error saving user message:', userError);
+          console.error('Error saving user message for agent', agentType, ':', userError);
           throw userError;
         }
 
-        console.log('User message saved:', savedMessage);
+        console.log('User message saved for agent', agentType, ':', savedMessage);
         userMessage = savedMessage;
       }
 
       // Prepare agent config for edge function
       const configToSend = agentConfig?.settings || null;
-      console.log('Calling edge function with config:', configToSend);
+      console.log('Calling edge function for agent', agentType, 'with config:', configToSend);
       
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke('chat', {
         body: {
@@ -96,63 +95,50 @@ export function useSendMessage(
           message: content,
           agentType,
           agentConfig: configToSend,
-          isGuest: !user, // Flag for guest users
+          isGuest: !user,
         },
       });
 
       if (aiError) {
-        console.error('=== EDGE FUNCTION ERROR ===');
+        console.error('=== EDGE FUNCTION ERROR FOR AGENT', agentType, '===');
         console.error('Error from edge function:', aiError);
         throw aiError;
       }
 
-      console.log('=== EDGE FUNCTION SUCCESS ===');
-      console.log('AI response received from edge function:', aiResponse);
-      console.log('AI response type:', typeof aiResponse?.response);
-      console.log('AI response content length:', aiResponse?.response?.length || 0);
-      
-      // Log first 200 characters to check for image markdown
-      if (aiResponse?.response) {
-        console.log('AI response content preview:', aiResponse.response.substring(0, 200));
-      }
+      console.log('=== EDGE FUNCTION SUCCESS FOR AGENT', agentType, '===');
+      console.log('AI response received for agent', agentType, ':', aiResponse);
 
       if (!aiResponse || !aiResponse.response) {
-        console.error('=== INVALID AI RESPONSE ===');
-        console.error('AI response is missing or invalid:', aiResponse);
-        throw new Error('Invalid response from AI service');
+        console.error('=== INVALID AI RESPONSE FOR AGENT', agentType, '===');
+        throw new Error(`Invalid response from AI service for agent ${agentType}`);
       }
 
-      // For guest users, add AI response to local state immediately
+      // For guest users, add AI response to isolated local state
       if (!user) {
         const aiMessage: LocalMessage = {
-          id: `temp-ai-${Date.now()}`,
+          id: `temp-ai-${agentType}-${Date.now()}`, // Include agent type in ID for isolation
           role: 'assistant',
           content: aiResponse.response,
           created_at: new Date().toISOString(),
         };
-        console.log('Adding AI message to guest state:', aiMessage);
-        console.log('AI message content length:', aiMessage.content.length);
-        console.log('AI message contains ![Generated Image]:', aiMessage.content.includes('![Generated Image]'));
+        console.log('Adding AI message to isolated guest state for agent', agentType, ':', aiMessage);
         addGuestMessage(aiMessage);
       }
 
-      console.log('=== FRONTEND MESSAGE SEND SUCCESS ===');
-      console.log('Final AI response content length:', aiResponse.response.length);
+      console.log('=== ISOLATED MESSAGE SEND SUCCESS FOR AGENT', agentType, '===');
 
       return { userMessage, aiResponse };
     },
-    onSuccess: (data) => {
-      console.log('=== MUTATION SUCCESS ===');
-      console.log('Message sent successfully');
-      console.log('Success data response length:', data?.aiResponse?.response?.length || 0);
+    onSuccess: (data, variables) => {
+      console.log('=== MUTATION SUCCESS FOR AGENT', variables.agentType, '===');
       
       // Only invalidate queries for authenticated users
       if (user) {
         queryClient.invalidateQueries({ queryKey: ['chat-messages', currentConversationId] });
       }
     },
-    onError: (error) => {
-      console.error('=== MUTATION ERROR ===');
+    onError: (error, variables) => {
+      console.error('=== MUTATION ERROR FOR AGENT', variables.agentType, '===');
       console.error('Failed to send message:', error);
       toast.error(`Failed to send message: ${error.message}`);
     },

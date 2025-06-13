@@ -8,49 +8,55 @@ export interface LocalMessage {
   created_at: string;
 }
 
-// Store messages per agent type for guest users - using a more robust storage approach
-const guestMessageStores = new Map<string, LocalMessage[]>();
+// Completely isolated storage per agent - using a Map to ensure strict separation
+const agentMessageStorage = new Map<string, LocalMessage[]>();
 
-export function useGuestMessages(agentType?: string) {
-  const storageKey = agentType || 'default';
+export function useGuestMessages(agentType: string) {
+  console.log('useGuestMessages: Initializing for agent:', agentType);
   
-  // Initialize with stored messages for this agent, ensuring each agent has its own isolated store
+  // Initialize isolated storage for this agent if it doesn't exist
+  if (!agentMessageStorage.has(agentType)) {
+    agentMessageStorage.set(agentType, []);
+    console.log('useGuestMessages: Created new isolated storage for agent:', agentType);
+  }
+
+  // Get the isolated messages for this specific agent
   const [guestMessages, setGuestMessages] = useState<LocalMessage[]>(() => {
-    if (!guestMessageStores.has(storageKey)) {
-      guestMessageStores.set(storageKey, []);
-    }
-    return guestMessageStores.get(storageKey) || [];
+    const messages = agentMessageStorage.get(agentType) || [];
+    console.log('useGuestMessages: Loaded', messages.length, 'messages for agent:', agentType);
+    return messages;
   });
 
-  // Sync with the Map when the storage key changes (agent switch)
+  // Sync state when agent changes - ensure complete isolation
   useEffect(() => {
-    console.log('useGuestMessages: Agent type changed to:', storageKey);
-    if (!guestMessageStores.has(storageKey)) {
-      guestMessageStores.set(storageKey, []);
-    }
-    const storedMessages = guestMessageStores.get(storageKey) || [];
-    console.log('useGuestMessages: Loading messages for agent:', storageKey, 'count:', storedMessages.length);
-    setGuestMessages(storedMessages);
-  }, [storageKey]);
+    const isolatedMessages = agentMessageStorage.get(agentType) || [];
+    console.log('useGuestMessages: Agent switch detected, loading', isolatedMessages.length, 'messages for:', agentType);
+    setGuestMessages(isolatedMessages);
+  }, [agentType]);
 
   const addGuestMessage = useCallback((message: LocalMessage) => {
-    console.log('Adding guest message for agent', storageKey, ':', message);
+    console.log('addGuestMessage: Adding message for agent', agentType, ':', message.role, message.content.substring(0, 50));
     
-    const updatedMessages = [...(guestMessageStores.get(storageKey) || []), message];
-    guestMessageStores.set(storageKey, updatedMessages);
+    // Update the isolated storage for this specific agent
+    const currentMessages = agentMessageStorage.get(agentType) || [];
+    const updatedMessages = [...currentMessages, message];
+    agentMessageStorage.set(agentType, updatedMessages);
+    
+    // Update local state
     setGuestMessages(updatedMessages);
-  }, [storageKey]);
+    
+    console.log('addGuestMessage: Agent', agentType, 'now has', updatedMessages.length, 'messages');
+  }, [agentType]);
 
   const clearGuestMessages = useCallback(() => {
-    console.log('Clearing guest messages for agent:', storageKey);
-    guestMessageStores.set(storageKey, []);
+    console.log('clearGuestMessages: Clearing messages for agent:', agentType);
+    agentMessageStorage.set(agentType, []);
     setGuestMessages([]);
-  }, [storageKey]);
+  }, [agentType]);
 
-  // Add function to get current message count for debugging
   const getMessageCount = useCallback(() => {
-    return guestMessageStores.get(storageKey)?.length || 0;
-  }, [storageKey]);
+    return agentMessageStorage.get(agentType)?.length || 0;
+  }, [agentType]);
 
   return {
     guestMessages,

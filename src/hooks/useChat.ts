@@ -10,48 +10,61 @@ import { useChatConversation } from './useChatConversation';
 export function useChat(
   agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio', 
   requireAuth = false,
-  frontendAgentType?: string // New parameter for guest message storage
+  frontendAgentType?: string
 ) {
   const queryClient = useQueryClient();
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  
+  // Use a per-agent conversation ID to ensure complete isolation
+  const [agentConversationIds, setAgentConversationIds] = useState<Record<string, string | null>>({});
+  
+  // Get the isolated conversation ID for this specific agent
+  const currentConversationId = agentConversationIds[agentType] || null;
+  
+  console.log('useChat: Agent', agentType, 'has isolated conversation ID:', currentConversationId);
 
-  // Use the frontend agent type for guest storage, fallback to backend type
+  // Use the agent type directly for complete isolation
   const storageAgentType = frontendAgentType || agentType;
 
-  // Use smaller hooks
   const { needsAuth, canUseAgent, user } = useChatAuth(agentType);
-  
   const { data: agentConfig, isLoading: configLoading } = useChatConfig(agentType, canUseAgent);
   
   const { messages, guestMessages, messagesLoading, sendMessageMutation, clearGuestMessages } = useChatMessages(
     currentConversationId,
     user,
     canUseAgent,
-    storageAgentType // Use frontend agent type for guest message isolation
+    storageAgentType // Use isolated storage per agent
   );
   
   const createConversationMutation = useChatConversation(
     agentType,
     user,
-    setCurrentConversationId
+    (newConversationId: string) => {
+      // Set conversation ID only for this specific agent
+      setAgentConversationIds(prev => ({
+        ...prev,
+        [agentType]: newConversationId
+      }));
+    }
   );
 
-  // Reset conversation when agent type changes
+  // Clear queries when agent changes to ensure isolation
   useEffect(() => {
-    console.log('useChat: Agent type changed to:', agentType, 'storage key:', storageAgentType);
-    // Always reset conversation ID when switching agents to ensure clean state
-    setCurrentConversationId(null);
-    
-    // Clear relevant queries for any previous agent
+    console.log('useChat: Agent changed to:', agentType, '- ensuring query isolation');
     queryClient.removeQueries({ queryKey: ['chat-messages'] });
-  }, [agentType, storageAgentType, queryClient]);
+  }, [agentType, queryClient]);
 
   const startNewConversation = useCallback(() => {
-    console.log('Starting new conversation for agent:', agentType);
-    setCurrentConversationId(null);
+    console.log('useChat: Starting new isolated conversation for agent:', agentType);
+    
+    // Clear only this agent's conversation ID
+    setAgentConversationIds(prev => ({
+      ...prev,
+      [agentType]: null
+    }));
+    
     queryClient.removeQueries({ queryKey: ['chat-messages'] });
     
-    // Clear guest messages for the current agent only
+    // Clear guest messages only for this specific agent
     if (!user && clearGuestMessages) {
       clearGuestMessages();
     }
@@ -60,11 +73,12 @@ export function useChat(
   const sendMessage = useCallback(async ({ content }: { content: string }) => {
     if (!content.trim()) return;
     
-    // Check if agent requires authentication before proceeding
     if (needsAuth && !user) {
       toast.error('Please sign in to chat with this agent');
       return;
     }
+    
+    console.log('useChat: Sending message for isolated agent:', agentType);
     
     try {
       await sendMessageMutation.mutateAsync({ 
@@ -75,7 +89,7 @@ export function useChat(
         createConversation: () => createConversationMutation.mutateAsync({})
       });
     } catch (error) {
-      console.error('Error in sendMessage:', error);
+      console.error('Error in sendMessage for agent', agentType, ':', error);
     }
   }, [sendMessageMutation, agentType, agentConfig, needsAuth, user, createConversationMutation]);
 
@@ -83,7 +97,7 @@ export function useChat(
     agentConfig,
     configLoading,
     messages,
-    guestMessages, // Export guest messages
+    guestMessages,
     messagesLoading,
     currentConversationId,
     sendMessage,
