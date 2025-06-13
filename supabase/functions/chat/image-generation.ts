@@ -1,23 +1,20 @@
+
 export async function generateImage(prompt: string, config: any, openaiApiKey: string): Promise<string | null> {
   console.log('Generating image with prompt:', prompt);
   
   try {
-    const imageModel = config.model?.image?.model || 'gpt-image-1';
+    const imageModel = config.model?.image?.model || 'dall-e-3';
     console.log('Using image model:', imageModel);
 
-    // Build request body based on model capabilities
+    // Build request body for image generation
     const requestBody: any = {
       model: imageModel,
       prompt: prompt,
       n: 1,
       size: '1024x1024',
+      quality: 'standard',
+      response_format: 'b64_json'
     };
-
-    // Only add response_format for models that support it (not gpt-image-1)
-    if (imageModel !== 'gpt-image-1') {
-      requestBody.response_format = 'b64_json';
-      requestBody.quality = 'standard';
-    }
 
     console.log('Image generation request body:', requestBody);
 
@@ -37,22 +34,13 @@ export async function generateImage(prompt: string, config: any, openaiApiKey: s
     }
 
     const data = await response.json();
+    console.log('Image generation response received');
     
-    // Handle different response formats
-    if (imageModel === 'gpt-image-1') {
-      // gpt-image-1 always returns base64 directly
-      if (data.data && data.data[0] && data.data[0].b64_json) {
-        const imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
-        console.log('Image generated successfully with gpt-image-1');
-        return imageUrl;
-      }
-    } else {
-      // Other models with b64_json response format
-      if (data.data && data.data[0] && data.data[0].b64_json) {
-        const imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
-        console.log('Image generated successfully');
-        return imageUrl;
-      }
+    // Handle the response
+    if (data.data && data.data[0] && data.data[0].b64_json) {
+      const imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
+      console.log('Image generated successfully');
+      return imageUrl;
     }
     
     console.error('Unexpected image generation response structure:', data);
