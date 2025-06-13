@@ -115,7 +115,7 @@ function getAgentName(agentType: AgentType): string {
     case 'gimmebot':
       return 'gimmebot';
     case 'creative_concept':
-      return 'Studio';
+      return 'Creative Concept';
     case 'neutral_chat':
       return 'Jack';
     case 'studio':
@@ -130,7 +130,7 @@ function getAgentDescription(agentType: AgentType): string {
     case 'gimmebot':
       return 'AI Marketing Assistant';
     case 'creative_concept':
-      return 'Creative Assistant';
+      return 'Creative Sub-Agent';
     case 'neutral_chat':
       return 'Open Conversation';
     case 'studio':
@@ -145,6 +145,7 @@ function getDefaultWelcomeMessage(agentType: AgentType): string {
     case 'gimmebot':
       return "Hello there! 🤔 I'm gimmebot, your friendly marketing guide here at gimmefy.ai. I'm here to help you navigate the world of marketing, answer questions about gimmefy's features, and point you toward exactly what you need. Whether you're exploring content strategies, curious about our platform, or just want some marketing wisdom—I'm all ears! What brings you here today?";
     case 'creative_concept':
+      return "Hi! I'm Creative Concept, a specialized sub-agent focused on generating innovative creative ideas and concepts. I work under the Studio umbrella to help you brainstorm unique approaches, creative strategies, and fresh perspectives for your marketing campaigns. Let's explore some creative possibilities together! What creative challenge can I help you with?";
     case 'studio':
       return "Welcome to Studio! 🎨 I'm your creative AI assistant, ready to help you bring your marketing ideas to life. Whether you need compelling copy, creative concepts, or strategic content direction, I'm here to collaborate with you. Let's create something amazing together! What creative challenge can I help you tackle today?";
     case 'neutral_chat':
