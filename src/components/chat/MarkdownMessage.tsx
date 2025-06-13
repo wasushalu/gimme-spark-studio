@@ -38,17 +38,31 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
             );
           },
           img({ src, alt, ...props }) {
+            // Check if src is empty or invalid
+            if (!src || src.trim() === '') {
+              console.error('Image src is empty or undefined');
+              return (
+                <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
+                  <p>Image failed to load: Empty source</p>
+                </div>
+              );
+            }
+
             return (
               <img 
                 src={src} 
-                alt={alt} 
+                alt={alt || 'Generated image'} 
                 className="max-w-full h-auto rounded-lg shadow-md my-4" 
                 onError={(e) => {
                   console.error('Image failed to load:', src);
-                  e.currentTarget.style.display = 'none';
+                  // Replace with error message instead of hiding
+                  const errorDiv = document.createElement('div');
+                  errorDiv.className = 'border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600';
+                  errorDiv.innerHTML = '<p>Failed to load image</p>';
+                  e.currentTarget.parentNode?.replaceChild(errorDiv, e.currentTarget);
                 }}
                 onLoad={() => {
-                  console.log('Image loaded successfully:', src?.substring(0, 50) + '...');
+                  console.log('Image loaded successfully, src length:', src?.length || 0);
                 }}
                 {...props} 
               />

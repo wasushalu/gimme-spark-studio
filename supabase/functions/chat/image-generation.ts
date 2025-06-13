@@ -3,7 +3,7 @@ export async function generateImage(prompt: string, config: any, openaiApiKey: s
   console.log('Generating image with prompt:', prompt);
   
   try {
-    const imageModel = config.model?.image?.model || 'dall-e-3';
+    const imageModel = config.model?.image?.model || 'gpt-image-1';
     console.log('Using image model:', imageModel);
 
     // Build request body based on model capabilities
@@ -53,8 +53,10 @@ export async function generateImage(prompt: string, config: any, openaiApiKey: s
       if (imageModel === 'gpt-image-1') {
         // gpt-image-1 returns base64 directly in the b64_json field
         if (imageData.b64_json) {
-          const imageUrl = `data:image/png;base64,${imageData.b64_json}`;
-          console.log('Image generated successfully with gpt-image-1');
+          const base64Data = imageData.b64_json;
+          console.log('Base64 data length:', base64Data.length);
+          const imageUrl = `data:image/png;base64,${base64Data}`;
+          console.log('Image generated successfully with gpt-image-1, URL length:', imageUrl.length);
           return imageUrl;
         } else {
           console.error('gpt-image-1 response missing b64_json field:', imageData);
@@ -63,8 +65,10 @@ export async function generateImage(prompt: string, config: any, openaiApiKey: s
       } else {
         // dall-e models return base64 in b64_json field when response_format is b64_json
         if (imageData.b64_json) {
-          const imageUrl = `data:image/png;base64,${imageData.b64_json}`;
-          console.log('Image generated successfully with DALL-E');
+          const base64Data = imageData.b64_json;
+          console.log('Base64 data length:', base64Data.length);
+          const imageUrl = `data:image/png;base64,${base64Data}`;
+          console.log('Image generated successfully with DALL-E, URL length:', imageUrl.length);
           return imageUrl;
         } else {
           console.error('DALL-E response missing b64_json field:', imageData);
