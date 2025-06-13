@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { getExtractedImage, isExtractedImageId } from '@/utils/imagePreprocessor';
 
 interface ImageRendererProps {
   src?: string;
@@ -12,8 +13,21 @@ export function ImageRenderer(props: ImageRendererProps) {
   console.log('ImageRenderer: All props received:', props);
   
   // Extract src from various possible prop locations
-  const src = props.src || props.node?.properties?.src || props.node?.url;
-  const alt = props.alt || props.node?.properties?.alt;
+  let src = props.src || props.node?.properties?.src || props.node?.url;
+  let alt = props.alt || props.node?.properties?.alt;
+  
+  // Check if this is a placeholder for an extracted large image
+  if (src && isExtractedImageId(src)) {
+    console.log('ImageRenderer: Detected extracted image placeholder:', src);
+    const extractedImage = getExtractedImage(src);
+    if (extractedImage) {
+      src = extractedImage.src;
+      alt = extractedImage.alt;
+      console.log('ImageRenderer: Restored large image, size:', src.length);
+    } else {
+      console.error('ImageRenderer: Could not find extracted image for ID:', src);
+    }
+  }
   
   console.log('ImageRenderer: Rendering image component');
   console.log('ImageRenderer: Image src:', src ? `${src.substring(0, 50)}... (length: ${src.length})` : 'EMPTY');
@@ -27,7 +41,18 @@ export function ImageRenderer(props: ImageRendererProps) {
         <p>Image failed to load: Empty source</p>
         <p className="text-xs mt-1">Alt text: {alt || 'No alt text'}</p>
         <p className="text-xs mt-1">Source value: {String(src)}</p>
-        <p className="text-xs mt-1">All props: {JSON.stringify(props, null, 2)}</p>
+      </div>
+    );
+  }
+
+  // Handle extracted image placeholder IDs that couldn't be resolved
+  if (isExtractedImageId(src)) {
+    console.error('ImageRenderer: Unresolved extracted image ID:', src);
+    return (
+      <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
+        <p>Image failed to load: Could not resolve large image</p>
+        <p className="text-xs mt-1">Image ID: {src}</p>
+        <p className="text-xs mt-1">Alt text: {alt || 'No alt text'}</p>
       </div>
     );
   }
