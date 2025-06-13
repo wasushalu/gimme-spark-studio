@@ -143,14 +143,14 @@ export function useWorkspaceData() {
     }
   }, [workspaces, selectedWorkspace]);
 
-  // Add workspace mutation - simplified to not create workspace membership
+  // Add workspace mutation - simplified with better error handling
   const addWorkspaceMutation = useMutation({
     mutationFn: async (name: string) => {
       console.log('Creating workspace with name:', name);
       
       const { data, error } = await supabase
         .from('workspaces')
-        .insert([{ name }])
+        .insert([{ name, description: null }])
         .select()
         .single();
 
@@ -183,18 +183,25 @@ export function useWorkspaceData() {
     },
   });
 
-  // Add project mutation
+  // Add project mutation - simplified with better error handling
   const addProjectMutation = useMutation({
     mutationFn: async (name: string) => {
       if (!selectedWorkspace) throw new Error('No workspace selected');
       
+      console.log('Creating project with name:', name, 'in workspace:', selectedWorkspace.id);
+      
       const { data, error } = await supabase
         .from('projects')
-        .insert([{ name, workspace_id: selectedWorkspace.id }])
+        .insert([{ name, workspace_id: selectedWorkspace.id, description: null }])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating project:', error);
+        throw error;
+      }
+      
+      console.log('Project created successfully:', data);
       return data;
     },
     onSuccess: (data) => {
@@ -217,18 +224,25 @@ export function useWorkspaceData() {
     },
   });
 
-  // Add brand vault mutation
+  // Add brand vault mutation - simplified with better error handling
   const addBrandVaultMutation = useMutation({
     mutationFn: async (name: string) => {
       if (!selectedProject) throw new Error('No project selected');
       
+      console.log('Creating brand vault with name:', name, 'in project:', selectedProject.id);
+      
       const { data, error } = await supabase
         .from('brand_vaults')
-        .insert([{ name, project_id: selectedProject.id }])
+        .insert([{ name, project_id: selectedProject.id, description: null }])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating brand vault:', error);
+        throw error;
+      }
+      
+      console.log('Brand vault created successfully:', data);
       return data;
     },
     onSuccess: (data) => {
