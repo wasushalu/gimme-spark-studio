@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { getExtractedImage, isExtractedImageId } from '@/utils/imagePreprocessor';
 
 interface ImageRendererProps {
@@ -10,6 +10,9 @@ interface ImageRendererProps {
 }
 
 export function ImageRenderer(props: ImageRendererProps) {
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  
   console.log('ImageRenderer: All props received:', props);
   
   // Extract src from various possible prop locations
@@ -57,7 +60,7 @@ export function ImageRenderer(props: ImageRendererProps) {
     );
   }
 
-  // Validate base64 data URI format - be more permissive with format
+  // Validate base64 data URI format
   if (!src.startsWith('data:image/')) {
     console.error('ImageRenderer: Invalid image format, expected data:image/ but got:', src.substring(0, 50));
     return (
@@ -93,32 +96,53 @@ export function ImageRenderer(props: ImageRendererProps) {
 
   console.log('ImageRenderer: Image validation passed, rendering img element');
 
-  const handleError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  const handleError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     console.error('ImageRenderer: Image onError event fired');
     console.error('ImageRenderer: Image failed to load in browser, src length:', src?.length);
     console.error('ImageRenderer: Image src preview:', src?.substring(0, 100));
-    
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600';
-    errorDiv.innerHTML = `
-      <p>Failed to load generated image</p>
-      <p class="text-xs mt-1">Source length: ${src?.length || 0}</p>
-      <p class="text-xs">Alt: ${alt || 'No alt text'}</p>
-      <p class="text-xs">Preview: ${src?.substring(0, 50) || 'No preview'}...</p>
-    `;
-    e.currentTarget.parentNode?.replaceChild(errorDiv, e.currentTarget);
-  };
+    setImageError(true);
+  }, [src]);
 
-  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     console.log('ImageRenderer: Image loaded successfully!');
     console.log('ImageRenderer: Loaded image dimensions:', {
       naturalWidth: e.currentTarget.naturalWidth,
       naturalHeight: e.currentTarget.naturalHeight
     });
-  };
+    setImageLoaded(true);
+    setImageError(false);
+  }, []);
+
+  // Show error state if image failed to load
+  if (imageError) {
+    return (
+      <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
+        <p>Failed to load generated image</p>
+        <p className="text-xs mt-1">Source length: {src?.length || 0}</p>
+        <p className="text-xs">Alt: {alt || 'No alt text'}</p>
+        <p className="text-xs">Preview: {src?.substring(0, 50) || 'No preview'}...</p>
+        <div className="mt-2">
+          <button 
+            onClick={() => {
+              setImageError(false);
+              setImageLoaded(false);
+            }}
+            className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+          >
+            Retry Load
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="my-4 text-center">
+      {!imageLoaded && (
+        <div className="mb-2 text-sm text-muted-foreground">
+          Loading image... ({Math.round((src?.length || 0) / 1024)}KB)
+        </div>
+      )}
       <img 
         src={src} 
         alt={alt || 'Generated image'} 
