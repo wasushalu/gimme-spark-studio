@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from 'react';
 import { MessageCircle, Clock } from 'lucide-react';
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 
 interface Conversation {
   id: string;
@@ -108,10 +107,10 @@ export function AgentConversationHistory({ agentType }: AgentConversationHistory
 
   if (conversations.length === 0) {
     return (
-      <div className="px-2 py-4 text-center">
-        <MessageCircle className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-        <p className="text-sm text-muted-foreground">No conversations yet</p>
-        <p className="text-xs text-muted-foreground mt-1">
+      <div className="text-center py-12">
+        <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+        <h3 className="text-lg font-medium mb-2">No conversations yet</h3>
+        <p className="text-muted-foreground">
           Start chatting with {agentType} to see history here
         </p>
       </div>
@@ -119,32 +118,33 @@ export function AgentConversationHistory({ agentType }: AgentConversationHistory
   }
 
   return (
-    <SidebarMenu>
+    <div className="space-y-4">
       {conversations.map((conversation) => (
-        <SidebarMenuItem key={conversation.id}>
-          <SidebarMenuButton 
-            onClick={() => handleConversationClick(conversation)}
-            className="flex-col items-start p-3 h-auto hover:bg-sidebar-accent"
-          >
-            <div className="w-full flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate mb-1">
-                  {conversation.title}
-                </p>
-                <p className="text-xs text-muted-foreground truncate mb-2">
-                  {conversation.lastMessage}
-                </p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Clock className="w-3 h-3" />
-                  <span>{formatTimestamp(conversation.timestamp)}</span>
-                  <span>•</span>
-                  <span>{conversation.messageCount} messages</span>
-                </div>
-              </div>
+        <div
+          key={conversation.id}
+          onClick={() => handleConversationClick(conversation)}
+          className="p-4 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors"
+        >
+          <div className="flex items-start justify-between mb-2">
+            <h3 className="font-medium text-lg truncate flex-1 mr-4">
+              {conversation.title}
+            </h3>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="w-3 h-3" />
+              <span>{formatTimestamp(conversation.timestamp)}</span>
             </div>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+          </div>
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+            {conversation.lastMessage}
+          </p>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">
+              {conversation.messageCount} messages
+            </span>
+            <MessageCircle className="w-4 h-4 text-muted-foreground" />
+          </div>
+        </div>
       ))}
-    </SidebarMenu>
+    </div>
   );
 }
