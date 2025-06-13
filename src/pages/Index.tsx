@@ -7,7 +7,8 @@ import { useChatData } from "@/hooks/useChatData";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Lock, Sparkles, MessageCircle, Zap, Users, TrendingUp } from "lucide-react";
 
 const Index = () => {
   const { user } = useAuth();
@@ -50,7 +51,7 @@ const Index = () => {
   }));
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header Navigation */}
       <WorkspaceNavigation
         workspaces={workspaces}
@@ -67,45 +68,185 @@ const Index = () => {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex">
+      <div className="flex flex-col lg:flex-row gap-8 p-6 lg:p-8 max-w-7xl mx-auto">
         {/* Left Content Area */}
-        <div className="flex-1 p-8">
-          {/* Agent Selection Cards - Top Row */}
-          <AgentSelector
-            activeAgent={activeAgent}
-            onAgentSelect={handleAgentSelect}
-          />
+        <div className="flex-1 space-y-8">
+          {/* Welcome Section */}
+          <div className="text-center lg:text-left space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
+              <Sparkles className="w-4 h-4" />
+              AI-Powered Marketing Platform
+            </div>
+            <h1 className="text-4xl lg:text-5xl font-bold tracking-tight">
+              Welcome to{" "}
+              <span className="gradient-text">gimmefy</span>
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-2xl">
+              Choose your AI assistant and start creating amazing marketing content, campaigns, and strategies.
+            </p>
+          </div>
+
+          {/* Agent Selection Cards */}
+          <div className="space-y-4">
+            <h2 className="text-2xl font-semibold flex items-center gap-2">
+              <MessageCircle className="w-6 h-6 text-primary" />
+              Choose Your AI Assistant
+            </h2>
+            <AgentSelector
+              activeAgent={activeAgent}
+              onAgentSelect={handleAgentSelect}
+            />
+          </div>
 
           {/* Chat Interface */}
-          <div className="h-[600px] border border-border/50 rounded-lg overflow-hidden">
-            {!canUseAgent ? (
-              <div className="h-full flex flex-col items-center justify-center p-8 text-center">
-                <Lock className="w-16 h-16 text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Authentication Required</h3>
-                <p className="text-muted-foreground mb-6">
-                  Please sign in to chat with {currentAgent.name}. You can continue using gimmebot without signing in.
-                </p>
-                <Button onClick={() => handleAgentSelect('gimmebot')}>
-                  Switch to gimmebot
-                </Button>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold flex items-center gap-2">
+                <Zap className="w-6 h-6 text-primary" />
+                Chat with {currentAgent.name}
+              </h2>
+              {!user && (
+                <Badge variant="secondary" className="text-xs">
+                  Guest Mode
+                </Badge>
+              )}
+            </div>
+            
+            <Card className="notion-shadow-lg border-0 bg-card/80 backdrop-blur-sm">
+              <div className="h-[600px] overflow-hidden rounded-lg">
+                {!canUseAgent ? (
+                  <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-6">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center">
+                      <Lock className="w-10 h-10 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-3">
+                      <h3 className="text-2xl font-semibold">Authentication Required</h3>
+                      <p className="text-muted-foreground max-w-md">
+                        Please sign in to chat with {currentAgent.name}. You can continue using gimmebot without signing in.
+                      </p>
+                    </div>
+                    <Button 
+                      onClick={() => handleAgentSelect('gimmebot')}
+                      className="px-6 py-3"
+                    >
+                      Switch to gimmebot
+                    </Button>
+                  </div>
+                ) : (
+                  <ChatInterface
+                    agentName={currentAgent.name}
+                    agentDescription={currentAgent.description}
+                    welcomeMessage={currentAgent.welcomeMessage}
+                    placeholder={`Message ${currentAgent.name}...`}
+                    isLoading={isLoading}
+                    onSendMessage={handleSendMessage}
+                    messages={formattedMessages}
+                  />
+                )}
               </div>
-            ) : (
-              <ChatInterface
-                agentName={currentAgent.name}
-                agentDescription={currentAgent.description}
-                welcomeMessage={currentAgent.welcomeMessage}
-                placeholder={`Message ${currentAgent.name}...`}
-                isLoading={isLoading}
-                onSendMessage={handleSendMessage}
-                messages={formattedMessages}
-              />
-            )}
+            </Card>
           </div>
         </div>
 
-        {/* Right Sidebar - Empty for now */}
-        <div className="w-80 border-l border-border/20 bg-muted/20">
-          {/* Right sidebar content can go here */}
+        {/* Right Sidebar */}
+        <div className="w-full lg:w-80 space-y-6">
+          {/* Platform Stats */}
+          <Card className="p-6 notion-shadow bg-gradient-to-br from-primary/5 to-creative/5 border-0">
+            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              Platform Stats
+            </h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Active Users</span>
+                <Badge variant="secondary">12.5K+</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Content Generated</span>
+                <Badge variant="secondary">1.2M+</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Campaigns Created</span>
+                <Badge variant="secondary">45K+</Badge>
+              </div>
+            </div>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card className="p-6 notion-shadow border-0">
+            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+              <Zap className="w-5 h-5 text-primary" />
+              Quick Actions
+            </h3>
+            <div className="space-y-3">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start" 
+                onClick={() => handleAgentSelect('gimmebot')}
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Start with gimmebot
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => handleAgentSelect('creative_concept')}
+                disabled={!canUseAgent}
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Creative Studio
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => handleAgentSelect('neutral_chat')}
+                disabled={!canUseAgent}
+              >
+                <Users className="w-4 h-4 mr-2" />
+                General Chat
+              </Button>
+            </div>
+          </Card>
+
+          {/* Tips & Tricks */}
+          <Card className="p-6 notion-shadow border-0">
+            <h3 className="font-semibold text-lg mb-4">💡 Pro Tips</h3>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <div className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0"></div>
+                <p>Be specific about your target audience and goals for better results</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0"></div>
+                <p>Use brand vault for consistent messaging across campaigns</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0"></div>
+                <p>Try different agents for varied creative perspectives</p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Feature Highlight */}
+          <Card className="p-6 notion-shadow border-0 bg-gradient-to-br from-creative/5 to-marketing/5">
+            <div className="text-center space-y-3">
+              <div className="w-12 h-12 mx-auto rounded-xl bg-gradient-to-br from-primary to-creative flex items-center justify-center">
+                <Sparkles className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="font-semibold">New Feature</h3>
+              <p className="text-sm text-muted-foreground">
+                Advanced image generation is now available in Studio mode!
+              </p>
+              <Button 
+                size="sm" 
+                className="w-full"
+                onClick={() => handleAgentSelect('creative_concept')}
+                disabled={!canUseAgent}
+              >
+                Try Studio
+              </Button>
+            </div>
+          </Card>
         </div>
       </div>
     </div>
