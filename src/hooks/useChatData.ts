@@ -77,7 +77,7 @@ function getAgentName(agentType: AgentType): string {
     case 'creative_concept':
       return 'Studio';
     case 'neutral_chat':
-      return 'Jack';
+      return 'Neutral Chat';
     case 'studio':
       return 'Studio';
     default:
@@ -108,7 +108,7 @@ function getDefaultWelcomeMessage(agentType: AgentType): string {
     case 'studio':
       return "Welcome to Studio! 🎨 I'm your creative AI assistant, ready to help you bring your marketing ideas to life. Whether you need compelling copy, creative concepts, or strategic content direction, I'm here to collaborate with you. Let's create something amazing together! What creative challenge can I help you tackle today?";
     case 'neutral_chat':
-      return "Hi there! I'm Jack, your helpful AI assistant. I'm here to provide clear, informative assistance across a wide range of topics. Whether you have questions, need advice, or want to explore ideas, I'm ready to help. What can I assist you with today?";
+      return "Hi there! I'm Neutral Chat, your helpful AI assistant. I'm here to provide clear, informative assistance across a wide range of topics. Whether you have questions, need advice, or want to explore ideas, I'm ready to help. What can I assist you with today?";
     default:
       return "Hello! How can I assist you today?";
   }
