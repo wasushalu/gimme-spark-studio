@@ -6,15 +6,23 @@ export async function generateImage(prompt: string, config: any, openaiApiKey: s
     const imageModel = config.model?.image?.model || 'dall-e-3';
     console.log('Using image model:', imageModel);
 
-    // Build request body for image generation
+    // Build request body based on model capabilities
     const requestBody: any = {
       model: imageModel,
       prompt: prompt,
       n: 1,
-      size: '1024x1024',
-      quality: 'standard',
-      response_format: 'b64_json'
+      size: '1024x1024'
     };
+
+    // Add model-specific parameters
+    if (imageModel === 'gpt-image-1') {
+      // gpt-image-1 specific parameters (no response_format, always returns base64)
+      requestBody.quality = 'standard';
+    } else {
+      // dall-e models
+      requestBody.response_format = 'b64_json';
+      requestBody.quality = 'standard';
+    }
 
     console.log('Image generation request body:', requestBody);
 
@@ -36,7 +44,7 @@ export async function generateImage(prompt: string, config: any, openaiApiKey: s
     const data = await response.json();
     console.log('Image generation response received');
     
-    // Handle the response
+    // Handle the response - both models return base64 in b64_json field
     if (data.data && data.data[0] && data.data[0].b64_json) {
       const imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
       console.log('Image generated successfully');
