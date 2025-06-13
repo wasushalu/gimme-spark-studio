@@ -136,7 +136,7 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
                     `;
                     e.currentTarget.parentNode?.replaceChild(errorDiv, e.currentTarget);
                   }}
-                  onLoad={() => {
+                  onLoad={(e) => {
                     console.log('MarkdownMessage: Image loaded successfully!');
                     console.log('MarkdownMessage: Loaded image dimensions:', {
                       naturalWidth: (e.target as HTMLImageElement).naturalWidth,
