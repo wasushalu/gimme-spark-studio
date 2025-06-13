@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -324,20 +323,29 @@ async function generateImage(prompt: string, config: any, openaiApiKey: string):
     const imageModel = config.model?.image?.model || 'gpt-image-1';
     console.log('Using image model:', imageModel);
 
+    // Build request body based on model capabilities
+    const requestBody: any = {
+      model: imageModel,
+      prompt: prompt,
+      n: 1,
+      size: '1024x1024',
+    };
+
+    // Only add response_format for models that support it (not gpt-image-1)
+    if (imageModel !== 'gpt-image-1') {
+      requestBody.response_format = 'b64_json';
+      requestBody.quality = 'standard';
+    }
+
+    console.log('Image generation request body:', requestBody);
+
     const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: imageModel,
-        prompt: prompt,
-        n: 1,
-        size: '1024x1024',
-        quality: 'standard',
-        response_format: 'b64_json'
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -348,10 +356,21 @@ async function generateImage(prompt: string, config: any, openaiApiKey: string):
 
     const data = await response.json();
     
-    if (data.data && data.data[0] && data.data[0].b64_json) {
-      const imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
-      console.log('Image generated successfully');
-      return imageUrl;
+    // Handle different response formats
+    if (imageModel === 'gpt-image-1') {
+      // gpt-image-1 always returns base64 directly
+      if (data.data && data.data[0] && data.data[0].b64_json) {
+        const imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
+        console.log('Image generated successfully with gpt-image-1');
+        return imageUrl;
+      }
+    } else {
+      // Other models with b64_json response format
+      if (data.data && data.data[0] && data.data[0].b64_json) {
+        const imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
+        console.log('Image generated successfully');
+        return imageUrl;
+      }
     }
     
     console.error('Unexpected image generation response structure:', data);
@@ -559,4 +578,20 @@ async function callPerplexity(model: string, messages: any[], config: any, supab
   }
   
   return data.choices[0].message.content;
+}
+
+async function getAgentConfigFromDatabase(supabaseClient: any, agentType: string) {
+  const { data: configData, error: configError } = await supabaseClient
+    .from('agent_config_versions')
+    .select('*')
+    .eq('agent_id', agentType)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (configError) {
+    console.error('Error fetching agent config from database:', configError);
+    return null;
+  }
+
+  return configData?.settings || null;
 }
