@@ -10,6 +10,7 @@ interface ImageRendererProps {
 }
 
 export function ImageRenderer(props: ImageRendererProps) {
+  // ALL HOOKS MUST BE DECLARED FIRST - BEFORE ANY CONDITIONAL LOGIC OR EARLY RETURNS
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -38,42 +39,6 @@ export function ImageRenderer(props: ImageRendererProps) {
   console.log('ImageRenderer: Rendering image component');
   console.log('ImageRenderer: Image src:', src ? `${src.substring(0, 50)}... (length: ${src.length})` : 'EMPTY');
   console.log('ImageRenderer: Image alt:', alt);
-  
-  // More robust validation of image source
-  if (!src || src.trim() === '' || src === 'undefined' || src === 'null') {
-    console.error('ImageRenderer: Image source is empty, undefined, or invalid:', src);
-    return (
-      <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
-        <p>Image failed to load: Empty source</p>
-        <p className="text-xs mt-1">Alt text: {alt || 'No alt text'}</p>
-        <p className="text-xs mt-1">Source value: {String(src)}</p>
-      </div>
-    );
-  }
-
-  // Handle extracted image placeholder IDs that couldn't be resolved
-  if (isExtractedImageId(src)) {
-    console.error('ImageRenderer: Unresolved extracted image ID:', src);
-    return (
-      <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
-        <p>Image failed to load: Could not resolve large image</p>
-        <p className="text-xs mt-1">Image ID: {src}</p>
-        <p className="text-xs mt-1">Alt text: {alt || 'No alt text'}</p>
-      </div>
-    );
-  }
-
-  // Validate base64 data URI format
-  if (!src.startsWith('data:image/')) {
-    console.error('ImageRenderer: Invalid image format, expected data:image/ but got:', src.substring(0, 50));
-    return (
-      <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
-        <p>Image failed to load: Invalid format</p>
-        <p className="text-xs mt-1">Expected data:image/ prefix</p>
-        <p className="text-xs mt-1">Received: {src.substring(0, 50)}...</p>
-      </div>
-    );
-  }
 
   // Convert large base64 images to blob URLs for better performance
   useEffect(() => {
@@ -177,6 +142,44 @@ export function ImageRenderer(props: ImageRendererProps) {
     setImageLoaded(true);
     setImageError(false);
   }, []);
+
+  // NOW ALL CONDITIONAL LOGIC AND EARLY RETURNS CAN HAPPEN AFTER ALL HOOKS
+  
+  // More robust validation of image source
+  if (!src || src.trim() === '' || src === 'undefined' || src === 'null') {
+    console.error('ImageRenderer: Image source is empty, undefined, or invalid:', src);
+    return (
+      <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
+        <p>Image failed to load: Empty source</p>
+        <p className="text-xs mt-1">Alt text: {alt || 'No alt text'}</p>
+        <p className="text-xs mt-1">Source value: {String(src)}</p>
+      </div>
+    );
+  }
+
+  // Handle extracted image placeholder IDs that couldn't be resolved
+  if (isExtractedImageId(src)) {
+    console.error('ImageRenderer: Unresolved extracted image ID:', src);
+    return (
+      <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
+        <p>Image failed to load: Could not resolve large image</p>
+        <p className="text-xs mt-1">Image ID: {src}</p>
+        <p className="text-xs mt-1">Alt text: {alt || 'No alt text'}</p>
+      </div>
+    );
+  }
+
+  // Validate base64 data URI format
+  if (!src.startsWith('data:image/')) {
+    console.error('ImageRenderer: Invalid image format, expected data:image/ but got:', src.substring(0, 50));
+    return (
+      <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
+        <p>Image failed to load: Invalid format</p>
+        <p className="text-xs mt-1">Expected data:image/ prefix</p>
+        <p className="text-xs mt-1">Received: {src.substring(0, 50)}...</p>
+      </div>
+    );
+  }
 
   // Show error state if blob creation failed
   if (blobError) {
