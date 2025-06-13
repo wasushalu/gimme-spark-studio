@@ -7,10 +7,17 @@ import { useChatConfig } from './useChatConfig';
 import { useChatMessages } from './useChatMessages';
 import { useChatConversation } from './useChatConversation';
 
-export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio', requireAuth = false) {
+export function useChat(
+  agentType: 'gimmebot' | 'creative_concept' | 'neutral_chat' | 'studio', 
+  requireAuth = false,
+  frontendAgentType?: string // New parameter for guest message storage
+) {
   const queryClient = useQueryClient();
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [lastAgentType, setLastAgentType] = useState<string>(agentType);
+
+  // Use the frontend agent type for guest storage, fallback to backend type
+  const storageAgentType = frontendAgentType || agentType;
 
   // Use smaller hooks
   const { needsAuth, canUseAgent, user } = useChatAuth(agentType);
@@ -21,7 +28,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
     currentConversationId,
     user,
     canUseAgent,
-    agentType // Pass agent type for per-agent guest message storage
+    storageAgentType // Use frontend agent type for guest message isolation
   );
   
   const createConversationMutation = useChatConversation(
@@ -41,7 +48,7 @@ export function useChat(agentType: 'gimmebot' | 'creative_concept' | 'neutral_ch
       queryClient.removeQueries({ queryKey: ['chat-messages'] });
       
       // Don't clear guest messages - each agent maintains its own conversation thread
-      // The useGuestMessages hook already handles per-agent isolation via the agentType parameter
+      // The useGuestMessages hook already handles per-agent isolation via the storageAgentType parameter
     }
   }, [agentType, lastAgentType, queryClient]);
 

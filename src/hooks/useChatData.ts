@@ -42,7 +42,7 @@ export function useChatData() {
     isLoading: chatLoading,
     startNewConversation,
     currentConversationId,
-  } = useChat(backendAgentType);
+  } = useChat(backendAgentType, false, activeAgent); // Pass the frontend agent type for guest storage
 
   // Update agent state when conversation ID changes
   useEffect(() => {
