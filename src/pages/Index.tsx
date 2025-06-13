@@ -41,6 +41,14 @@ const Index = () => {
     }
   };
 
+  // Convert ChatMessage[] to Message[] format expected by ChatInterface
+  const formattedMessages = messages.map(msg => ({
+    id: msg.id,
+    role: msg.role as 'user' | 'assistant',
+    content: msg.content,
+    timestamp: new Date(msg.created_at)
+  }));
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header Navigation */}
@@ -85,12 +93,11 @@ const Index = () => {
               <ChatInterface
                 agentName={currentAgent.name}
                 agentDescription={currentAgent.description}
-                agentIcon={currentAgent.icon}
                 welcomeMessage={currentAgent.welcomeMessage}
                 placeholder={`Message ${currentAgent.name}...`}
                 isLoading={isLoading}
                 onSendMessage={handleSendMessage}
-                messages={messages}
+                messages={formattedMessages}
               />
             )}
           </div>

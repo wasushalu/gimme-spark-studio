@@ -29,7 +29,7 @@ export function createDefaultConfig(models: ModelCatalog[]) {
       },
       image: {
         provider: defaultImageModel?.provider || 'openai',
-        model: defaultImageModel?.model_name || 'dall-e-3'
+        model: defaultImageModel?.model_name || 'gpt-image-1'
       },
       audio: {
         provider: defaultAudioModel?.provider || 'elevenlabs',
@@ -41,14 +41,14 @@ export function createDefaultConfig(models: ModelCatalog[]) {
       }
     },
     generation: {
-      max_context_tokens: 128000, // Increased from 8000 for better context handling
-      max_response_tokens: 8000,  // Increased from 4000 for detailed responses
+      max_context_tokens: 128000,
+      max_response_tokens: 8000,
       temperature: 0.7,
       top_p: 1.0
     },
-    prompt: '', // Empty by default - must be set in admin
-    welcome_message: '', // Ensure this is always a string
-    tools: [],
+    prompt: '',
+    welcome_message: '',
+    tools: ['image_generation'], // Add image generation as default tool
     knowledge_base: {
       enabled: false,
       vector_store_id: null,

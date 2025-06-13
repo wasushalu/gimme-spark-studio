@@ -175,19 +175,32 @@ serve(async (req) => {
 
     console.log('Conversation history:', conversationHistory.length, 'messages');
 
+    // Enhance system prompt with image generation capability
+    const enhancedSystemPrompt = `${config.prompt}
+
+IMPORTANT: You have access to image generation capabilities. When a user requests an image, asks for visual content, or when you determine that an image would significantly enhance your response, you can generate images by including the following special syntax in your response:
+
+[GENERATE_IMAGE: detailed description of the image to generate]
+
+For example:
+- If user asks "show me a logo for a coffee shop", respond with: [GENERATE_IMAGE: modern minimalist coffee shop logo with a stylized coffee cup, warm brown and cream colors, clean typography]
+- If discussing marketing concepts, you might include: [GENERATE_IMAGE: infographic showing marketing funnel stages with icons and connecting arrows]
+
+The image generation will happen automatically when this syntax is detected. Be creative and use this capability to enhance your responses with relevant visuals when appropriate.`;
+
     // Determine which AI service to use based on the configured model
     let aiResponse;
 
     try {
       if (modelProvider === 'openai') {
         console.log('Calling OpenAI with model:', modelName);
-        aiResponse = await callOpenAI(modelName, conversationHistory, config, openaiApiKey);
+        aiResponse = await callOpenAI(modelName, conversationHistory, { ...config, prompt: enhancedSystemPrompt }, openaiApiKey);
       } else if (modelProvider === 'anthropic') {
         console.log('Calling Anthropic with model:', modelName);
-        aiResponse = await callAnthropic(modelName, conversationHistory, config, supabaseClient);
+        aiResponse = await callAnthropic(modelName, conversationHistory, { ...config, prompt: enhancedSystemPrompt }, supabaseClient);
       } else if (modelProvider === 'perplexity') {
         console.log('Calling Perplexity with model:', modelName);
-        aiResponse = await callPerplexity(modelName, conversationHistory, config, supabaseClient);
+        aiResponse = await callPerplexity(modelName, conversationHistory, { ...config, prompt: enhancedSystemPrompt }, supabaseClient);
       } else {
         console.error('Unsupported model provider:', modelProvider);
         return new Response(JSON.stringify({ 
@@ -223,6 +236,41 @@ serve(async (req) => {
       });
     }
 
+    // Process AI response for image generation requests
+    let processedResponse = aiResponse;
+    const imageGenerationRegex = /\[GENERATE_IMAGE:\s*([^\]]+)\]/g;
+    const imageRequests = [];
+    let match;
+
+    while ((match = imageGenerationRegex.exec(aiResponse)) !== null) {
+      imageRequests.push(match[1].trim());
+    }
+
+    if (imageRequests.length > 0) {
+      console.log('Found image generation requests:', imageRequests.length);
+      
+      // Generate images for each request
+      for (const imagePrompt of imageRequests) {
+        try {
+          const imageUrl = await generateImage(imagePrompt, config, openaiApiKey);
+          if (imageUrl) {
+            // Replace the image generation syntax with the actual image
+            processedResponse = processedResponse.replace(
+              `[GENERATE_IMAGE: ${imagePrompt}]`,
+              `![Generated Image](${imageUrl})\n\n*Generated image: ${imagePrompt}*`
+            );
+          }
+        } catch (imageError) {
+          console.error('Error generating image:', imageError);
+          // Replace with error message
+          processedResponse = processedResponse.replace(
+            `[GENERATE_IMAGE: ${imagePrompt}]`,
+            `*[Image generation failed: ${imagePrompt}]*`
+          );
+        }
+      }
+    }
+
     // Save AI response to database only for authenticated users with conversations
     if (conversationId && !isGuest) {
       console.log('Saving AI response to database');
@@ -231,12 +279,13 @@ serve(async (req) => {
         .insert({
           conversation_id: conversationId,
           role: 'assistant',
-          content: aiResponse,
+          content: processedResponse,
           metadata: {
             model: modelName,
             provider: modelProvider,
             temperature: temperature,
-            max_response_tokens: maxResponseTokens
+            max_response_tokens: maxResponseTokens,
+            images_generated: imageRequests.length
           }
         });
 
@@ -251,7 +300,7 @@ serve(async (req) => {
     }
 
     console.log('=== CHAT FUNCTION SUCCESS ===');
-    return new Response(JSON.stringify({ response: aiResponse }), {
+    return new Response(JSON.stringify({ response: processedResponse }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
@@ -268,37 +317,47 @@ serve(async (req) => {
   }
 });
 
-async function getAgentConfigFromDatabase(supabaseClient: any, agentType: string) {
+async function generateImage(prompt: string, config: any, openaiApiKey: string): Promise<string | null> {
+  console.log('Generating image with prompt:', prompt);
+  
   try {
-    console.log('Fetching complete agent configuration from database for:', agentType);
-    
-    const { data: configData, error: configError } = await supabaseClient
-      .from('agent_config_versions')
-      .select('settings')
-      .eq('agent_id', agentType)
-      .eq('is_active', true)
-      .maybeSingle();
+    const imageModel = config.model?.image?.model || 'gpt-image-1';
+    console.log('Using image model:', imageModel);
 
-    if (configError) {
-      console.error('Error fetching agent config:', configError);
+    const response = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: imageModel,
+        prompt: prompt,
+        n: 1,
+        size: '1024x1024',
+        quality: 'standard',
+        response_format: 'b64_json'
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Image generation API error:', response.status, errorText);
       return null;
     }
 
-    if (configData?.settings) {
-      console.log('Found complete agent configuration in database:', {
-        hasPrompt: !!configData.settings.prompt,
-        hasModel: !!configData.settings.model,
-        hasGeneration: !!configData.settings.generation,
-        promptLength: configData.settings.prompt?.length || 0
-      });
-      return configData.settings;
-    }
-
-    console.log('No active configuration found for agent:', agentType);
-    return null;
+    const data = await response.json();
     
+    if (data.data && data.data[0] && data.data[0].b64_json) {
+      const imageUrl = `data:image/png;base64,${data.data[0].b64_json}`;
+      console.log('Image generated successfully');
+      return imageUrl;
+    }
+    
+    console.error('Unexpected image generation response structure:', data);
+    return null;
   } catch (error) {
-    console.error('Error in getAgentConfigFromDatabase:', error);
+    console.error('Error in generateImage:', error);
     return null;
   }
 }
