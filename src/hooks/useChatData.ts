@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useChatAuth } from './useChatAuth';
 import { useChatConfig } from './useChatConfig';
@@ -36,16 +35,14 @@ export function useChatData() {
   const handleSendMessage = useCallback(async (content: string) => {
     if (!canUseAgent) return;
     
-    console.log('useChatData: Sending message with agent config:', {
+    console.log('useChatData: Sending message with agent type:', {
       agentType: backendAgentType,
       hasConfig: !!agentConfig,
       configPromptLength: agentConfig?.settings?.prompt?.length || 0
     });
     
-    await sendMessage({ 
-      content,
-      agentConfig: agentConfig?.settings || undefined
-    });
+    // Just pass the content - the useChat hook will handle the agent config internally
+    await sendMessage({ content });
   }, [canUseAgent, backendAgentType, agentConfig, sendMessage]);
 
   // Get current agent details with fallback welcome messages
