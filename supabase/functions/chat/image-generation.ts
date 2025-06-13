@@ -54,9 +54,10 @@ export async function generateImage(prompt: string, config: any, openaiApiKey: s
         // gpt-image-1 returns base64 directly in the b64_json field
         if (imageData.b64_json) {
           const base64Data = imageData.b64_json;
-          console.log('Base64 data length:', base64Data.length);
-          const imageUrl = `data:image/png;base64,${base64Data}`;
-          console.log('Image generated successfully with gpt-image-1, URL length:', imageUrl.length);
+          console.log('Base64 data length for gpt-image-1:', base64Data.length);
+          // Ensure we have proper base64 data URI format
+          const imageUrl = base64Data.startsWith('data:') ? base64Data : `data:image/png;base64,${base64Data}`;
+          console.log('Final image URL format for gpt-image-1:', imageUrl.substring(0, 50) + '...');
           return imageUrl;
         } else {
           console.error('gpt-image-1 response missing b64_json field:', imageData);
@@ -66,9 +67,10 @@ export async function generateImage(prompt: string, config: any, openaiApiKey: s
         // dall-e models return base64 in b64_json field when response_format is b64_json
         if (imageData.b64_json) {
           const base64Data = imageData.b64_json;
-          console.log('Base64 data length:', base64Data.length);
-          const imageUrl = `data:image/png;base64,${base64Data}`;
-          console.log('Image generated successfully with DALL-E, URL length:', imageUrl.length);
+          console.log('Base64 data length for DALL-E:', base64Data.length);
+          // Ensure we have proper base64 data URI format
+          const imageUrl = base64Data.startsWith('data:') ? base64Data : `data:image/png;base64,${base64Data}`;
+          console.log('Final image URL format for DALL-E:', imageUrl.substring(0, 50) + '...');
           return imageUrl;
         } else {
           console.error('DALL-E response missing b64_json field:', imageData);
@@ -94,19 +96,31 @@ export function processImageGenerationRequests(aiResponse: string): string[] {
     imageRequests.push(match[1].trim());
   }
 
+  console.log('Found image generation requests:', imageRequests);
   return imageRequests;
 }
 
 export function replaceImageSyntaxWithImage(response: string, imagePrompt: string, imageUrl: string): string {
-  return response.replace(
-    `[GENERATE_IMAGE: ${imagePrompt}]`,
-    `![Generated Image](${imageUrl})\n\n*Generated image: ${imagePrompt}*`
-  );
+  console.log('Replacing image syntax for prompt:', imagePrompt);
+  console.log('With image URL (first 100 chars):', imageUrl.substring(0, 100) + '...');
+  
+  const originalSyntax = `[GENERATE_IMAGE: ${imagePrompt}]`;
+  const replacement = `![Generated Image](${imageUrl})\n\n*Generated image: ${imagePrompt}*`;
+  
+  console.log('Original syntax:', originalSyntax);
+  console.log('Replacement syntax:', replacement.substring(0, 100) + '...');
+  
+  const updatedResponse = response.replace(originalSyntax, replacement);
+  console.log('Response updated:', updatedResponse !== response);
+  
+  return updatedResponse;
 }
 
 export function replaceImageSyntaxWithError(response: string, imagePrompt: string): string {
-  return response.replace(
-    `[GENERATE_IMAGE: ${imagePrompt}]`,
-    `*[Image generation failed: ${imagePrompt}]*`
-  );
+  console.log('Replacing image syntax with error for prompt:', imagePrompt);
+  
+  const originalSyntax = `[GENERATE_IMAGE: ${imagePrompt}]`;
+  const replacement = `*[Image generation failed: ${imagePrompt}]*`;
+  
+  return response.replace(originalSyntax, replacement);
 }

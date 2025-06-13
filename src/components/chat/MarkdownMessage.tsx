@@ -38,6 +38,10 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
             );
           },
           img({ src, alt, ...props }) {
+            console.log('MarkdownMessage img component called with src:', src?.substring(0, 100) + '...');
+            console.log('Image src type:', typeof src);
+            console.log('Image src length:', src?.length || 0);
+            
             // Check if src is empty or invalid
             if (!src || src.trim() === '') {
               console.error('Image src is empty or undefined');
@@ -48,13 +52,23 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
               );
             }
 
+            // Validate base64 data URI format
+            if (!src.startsWith('data:image/')) {
+              console.error('Invalid image src format:', src.substring(0, 50));
+              return (
+                <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
+                  <p>Image failed to load: Invalid format</p>
+                </div>
+              );
+            }
+
             return (
               <img 
                 src={src} 
                 alt={alt || 'Generated image'} 
                 className="max-w-full h-auto rounded-lg shadow-md my-4" 
                 onError={(e) => {
-                  console.error('Image failed to load:', src);
+                  console.error('Image failed to load:', src?.substring(0, 100) + '...');
                   // Replace with error message instead of hiding
                   const errorDiv = document.createElement('div');
                   errorDiv.className = 'border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600';
