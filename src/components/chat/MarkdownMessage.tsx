@@ -25,6 +25,14 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
   }
   
   console.log('MarkdownMessage: Found', imageMatches.length, 'images to render');
+  imageMatches.forEach((img, index) => {
+    console.log(`MarkdownMessage: Image ${index + 1}:`, {
+      alt: img.altText,
+      srcLength: img.src?.length || 0,
+      srcPrefix: img.src?.substring(0, 30) || 'No source',
+      isDataUri: img.src?.startsWith('data:') || false
+    });
+  });
   
   return (
     <div className={`prose prose-sm max-w-none dark:prose-invert ${className}`}>
@@ -54,30 +62,57 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
             );
           },
           img({ src, alt, ...props }) {
-            console.log('MarkdownMessage: Rendering image with alt:', alt);
-            console.log('MarkdownMessage: Image src length:', src?.length || 0);
+            console.log('MarkdownMessage: Rendering image component');
+            console.log('MarkdownMessage: Image src:', src ? `${src.substring(0, 50)}... (length: ${src.length})` : 'EMPTY');
+            console.log('MarkdownMessage: Image alt:', alt);
             
-            // Validate image source
-            if (!src || src.trim() === '') {
-              console.error('MarkdownMessage: Empty image source');
+            // More robust validation of image source
+            if (!src || src.trim() === '' || src === 'undefined' || src === 'null') {
+              console.error('MarkdownMessage: Image source is empty, undefined, or invalid:', src);
               return (
                 <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
                   <p>Image failed to load: Empty source</p>
                   <p className="text-xs mt-1">Alt text: {alt || 'No alt text'}</p>
+                  <p className="text-xs mt-1">Source value: {String(src)}</p>
                 </div>
               );
             }
 
-            // Validate base64 data URI format
+            // Validate base64 data URI format - be more permissive with format
             if (!src.startsWith('data:image/')) {
-              console.error('MarkdownMessage: Invalid image format, expected data:image/');
+              console.error('MarkdownMessage: Invalid image format, expected data:image/ but got:', src.substring(0, 50));
               return (
                 <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
                   <p>Image failed to load: Invalid format</p>
                   <p className="text-xs mt-1">Expected data:image/ prefix</p>
+                  <p className="text-xs mt-1">Received: {src.substring(0, 50)}...</p>
                 </div>
               );
             }
+
+            // Additional validation for base64 content
+            try {
+              const base64Part = src.split(',')[1];
+              if (!base64Part || base64Part.length < 100) {
+                console.error('MarkdownMessage: Base64 content appears to be too short or missing');
+                return (
+                  <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
+                    <p>Image failed to load: Invalid base64 content</p>
+                    <p className="text-xs mt-1">Base64 length: {base64Part?.length || 0}</p>
+                  </div>
+                );
+              }
+            } catch (error) {
+              console.error('MarkdownMessage: Error parsing base64:', error);
+              return (
+                <div className="border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600">
+                  <p>Image failed to load: Base64 parsing error</p>
+                  <p className="text-xs mt-1">Error: {error.message}</p>
+                </div>
+              );
+            }
+
+            console.log('MarkdownMessage: Image validation passed, rendering img element');
 
             return (
               <div className="my-4 text-center">
@@ -87,18 +122,26 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
                   className="max-w-full h-auto rounded-lg shadow-lg mx-auto" 
                   style={{ maxHeight: '512px' }}
                   onError={(e) => {
-                    console.error('MarkdownMessage: Image failed to load in browser');
+                    console.error('MarkdownMessage: Image onError event fired');
+                    console.error('MarkdownMessage: Image failed to load in browser, src length:', src?.length);
+                    console.error('MarkdownMessage: Image src preview:', src?.substring(0, 100));
+                    
                     const errorDiv = document.createElement('div');
                     errorDiv.className = 'border border-dashed border-red-300 rounded-lg p-4 my-4 text-center text-red-600';
                     errorDiv.innerHTML = `
                       <p>Failed to load generated image</p>
                       <p class="text-xs mt-1">Source length: ${src?.length || 0}</p>
                       <p class="text-xs">Alt: ${alt || 'No alt text'}</p>
+                      <p class="text-xs">Preview: ${src?.substring(0, 50) || 'No preview'}...</p>
                     `;
                     e.currentTarget.parentNode?.replaceChild(errorDiv, e.currentTarget);
                   }}
                   onLoad={() => {
-                    console.log('MarkdownMessage: Image loaded successfully');
+                    console.log('MarkdownMessage: Image loaded successfully!');
+                    console.log('MarkdownMessage: Loaded image dimensions:', {
+                      naturalWidth: (e.target as HTMLImageElement).naturalWidth,
+                      naturalHeight: (e.target as HTMLImageElement).naturalHeight
+                    });
                   }}
                   {...props} 
                 />
