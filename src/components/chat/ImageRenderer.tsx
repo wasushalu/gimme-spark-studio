@@ -4,10 +4,17 @@ import React from 'react';
 interface ImageRendererProps {
   src?: string;
   alt?: string;
+  node?: any;
   [key: string]: any;
 }
 
-export function ImageRenderer({ src, alt, ...props }: ImageRendererProps) {
+export function ImageRenderer(props: ImageRendererProps) {
+  console.log('ImageRenderer: All props received:', props);
+  
+  // Extract src from various possible prop locations
+  const src = props.src || props.node?.properties?.src || props.node?.url;
+  const alt = props.alt || props.node?.properties?.alt;
+  
   console.log('ImageRenderer: Rendering image component');
   console.log('ImageRenderer: Image src:', src ? `${src.substring(0, 50)}... (length: ${src.length})` : 'EMPTY');
   console.log('ImageRenderer: Image alt:', alt);
@@ -20,6 +27,7 @@ export function ImageRenderer({ src, alt, ...props }: ImageRendererProps) {
         <p>Image failed to load: Empty source</p>
         <p className="text-xs mt-1">Alt text: {alt || 'No alt text'}</p>
         <p className="text-xs mt-1">Source value: {String(src)}</p>
+        <p className="text-xs mt-1">All props: {JSON.stringify(props, null, 2)}</p>
       </div>
     );
   }
