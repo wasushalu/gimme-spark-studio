@@ -47,9 +47,15 @@ export function useGuestMessages(agentType?: string) {
     setGuestMessages([]);
   }, [storageKey]);
 
+  // Add function to get current message count for debugging
+  const getMessageCount = useCallback(() => {
+    return guestMessageStores.get(storageKey)?.length || 0;
+  }, [storageKey]);
+
   return {
     guestMessages,
     addGuestMessage,
     clearGuestMessages,
+    getMessageCount,
   };
 }
