@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -101,33 +102,63 @@ serve(async (req) => {
       console.log('Guest user or no conversation - starting fresh conversation');
     }
 
-    // Get agent configuration from database if not provided
+    // Get agent configuration from database - MUST have config to proceed
     let config;
     if (agentConfig && typeof agentConfig === 'object') {
-      console.log('Using provided agent config');
-      config = {
-        model: agentConfig.model || { text: { provider: 'openai', model: 'gpt-4o-mini' } },
-        generation: agentConfig.generation || { temperature: 0.7, max_response_tokens: 4000 },
-        prompt: agentConfig.prompt || await getAgentPromptFromDatabase(supabaseClient, agentType)
-      };
+      console.log('Using provided agent config from request');
+      config = agentConfig;
     } else {
       console.log('No agent config provided, fetching from database for agent type:', agentType);
-      const dbPrompt = await getAgentPromptFromDatabase(supabaseClient, agentType);
-      config = {
-        model: { text: { provider: 'openai', model: 'gpt-4o-mini' } },
-        generation: { temperature: 0.7, max_response_tokens: 4000 },
-        prompt: dbPrompt
-      };
+      const dbConfig = await getAgentConfigFromDatabase(supabaseClient, agentType);
+      if (!dbConfig) {
+        return new Response(JSON.stringify({ 
+          error: 'Agent configuration not found',
+          details: `No active configuration found for agent ${agentType}. Please configure the agent in the admin panel.`
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      config = dbConfig;
     }
 
-    // Use the model name exactly as configured in the admin panel
-    const modelName = config.model?.text?.model || 'gpt-4o-mini';
+    // Validate required configuration
+    if (!config.prompt) {
+      console.error('No system prompt found in agent configuration');
+      return new Response(JSON.stringify({ 
+        error: 'Invalid agent configuration',
+        details: 'System prompt is required but not configured. Please set up the agent prompt in the admin panel.'
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    console.log('Final config:', {
-      modelProvider: config.model?.text?.provider,
-      modelName: modelName,
+    // Use configuration values from database - NO HARDCODED FALLBACKS
+    const modelProvider = config.model?.text?.provider;
+    const modelName = config.model?.text?.model;
+    const temperature = config.generation?.temperature;
+    const maxResponseTokens = config.generation?.max_response_tokens;
+    const maxContextTokens = config.generation?.max_context_tokens;
+
+    if (!modelProvider || !modelName) {
+      console.error('Model configuration missing');
+      return new Response(JSON.stringify({ 
+        error: 'Invalid model configuration',
+        details: 'Model provider and name must be configured in the admin panel.'
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Using configuration from database:', {
+      modelProvider,
+      modelName,
       promptLength: config.prompt?.length,
-      temperature: config.generation?.temperature
+      temperature,
+      maxResponseTokens,
+      maxContextTokens
     });
 
     // Build conversation history and add current message
@@ -145,30 +176,34 @@ serve(async (req) => {
     console.log('Conversation history:', conversationHistory.length, 'messages');
 
     // Determine which AI service to use based on the configured model
-    const textModel = config.model?.text;
     let aiResponse;
 
     try {
-      if (textModel?.provider === 'openai') {
+      if (modelProvider === 'openai') {
         console.log('Calling OpenAI with model:', modelName);
         aiResponse = await callOpenAI(modelName, conversationHistory, config, openaiApiKey);
-      } else if (textModel?.provider === 'anthropic') {
+      } else if (modelProvider === 'anthropic') {
         console.log('Calling Anthropic with model:', modelName);
         aiResponse = await callAnthropic(modelName, conversationHistory, config, supabaseClient);
-      } else if (textModel?.provider === 'perplexity') {
+      } else if (modelProvider === 'perplexity') {
         console.log('Calling Perplexity with model:', modelName);
         aiResponse = await callPerplexity(modelName, conversationHistory, config, supabaseClient);
       } else {
-        // Default to OpenAI if provider not recognized
-        console.log('Unknown provider, defaulting to OpenAI');
-        aiResponse = await callOpenAI('gpt-4o-mini', conversationHistory, config, openaiApiKey);
+        console.error('Unsupported model provider:', modelProvider);
+        return new Response(JSON.stringify({ 
+          error: 'Unsupported model provider',
+          details: `Provider '${modelProvider}' is not supported. Please configure a supported provider in the admin panel.`
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
     } catch (aiError) {
       console.error('Error calling AI service:', aiError);
       return new Response(JSON.stringify({ 
         error: 'Failed to get AI response',
         details: aiError.message,
-        provider: textModel?.provider || 'openai',
+        provider: modelProvider,
         model: modelName
       }), {
         status: 500,
@@ -199,8 +234,9 @@ serve(async (req) => {
           content: aiResponse,
           metadata: {
             model: modelName,
-            provider: textModel?.provider || 'openai',
-            temperature: config.generation?.temperature || 0.7
+            provider: modelProvider,
+            temperature: temperature,
+            max_response_tokens: maxResponseTokens
           }
         });
 
@@ -232,11 +268,10 @@ serve(async (req) => {
   }
 });
 
-async function getAgentPromptFromDatabase(supabaseClient: any, agentType: string): Promise<string> {
+async function getAgentConfigFromDatabase(supabaseClient: any, agentType: string) {
   try {
-    console.log('Fetching agent prompt from database for:', agentType);
+    console.log('Fetching complete agent configuration from database for:', agentType);
     
-    // First try to get the active configuration for this agent
     const { data: configData, error: configError } = await supabaseClient
       .from('agent_config_versions')
       .select('settings')
@@ -246,33 +281,25 @@ async function getAgentPromptFromDatabase(supabaseClient: any, agentType: string
 
     if (configError) {
       console.error('Error fetching agent config:', configError);
-    } else if (configData?.settings?.prompt) {
-      console.log('Found agent prompt in database, length:', configData.settings.prompt.length);
-      return configData.settings.prompt;
+      return null;
     }
 
-    // Fallback: check if agent exists in agents table
-    const { data: agentData, error: agentError } = await supabaseClient
-      .from('agents')
-      .select('*')
-      .eq('agent_id', agentType)
-      .maybeSingle();
-
-    if (agentError) {
-      console.error('Error fetching agent:', agentError);
-    } else if (agentData) {
-      console.log('Found agent in database:', agentData.label);
-      // Return a generic prompt based on agent type
-      return `You are ${agentData.label}, a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions.`;
+    if (configData?.settings) {
+      console.log('Found complete agent configuration in database:', {
+        hasPrompt: !!configData.settings.prompt,
+        hasModel: !!configData.settings.model,
+        hasGeneration: !!configData.settings.generation,
+        promptLength: configData.settings.prompt?.length || 0
+      });
+      return configData.settings;
     }
 
-    // Final fallback
-    console.log('No agent configuration found in database, using minimal fallback');
-    return 'You are a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions.';
+    console.log('No active configuration found for agent:', agentType);
+    return null;
     
   } catch (error) {
-    console.error('Error in getAgentPromptFromDatabase:', error);
-    return 'You are a helpful AI assistant. Provide clear, accurate, and helpful responses to user questions.';
+    console.error('Error in getAgentConfigFromDatabase:', error);
+    return null;
   }
 }
 
@@ -289,11 +316,21 @@ async function callOpenAI(model: string, messages: any[], config: any, apiKey: s
     throw new Error('OpenAI API key not provided');
   }
 
-  const systemPrompt = config.prompt || 'You are a helpful assistant.';
-  const temperature = config.generation?.temperature || 0.7;
-  const maxTokens = config.generation?.max_response_tokens || 4000;
+  // Use ALL parameters from database configuration - NO DEFAULTS
+  const systemPrompt = config.prompt;
+  const temperature = config.generation?.temperature;
+  const maxTokens = config.generation?.max_response_tokens;
 
-  console.log('OpenAI call parameters:', {
+  if (systemPrompt === undefined || temperature === undefined || maxTokens === undefined) {
+    console.error('Missing required configuration parameters:', {
+      hasPrompt: systemPrompt !== undefined,
+      hasTemperature: temperature !== undefined,
+      hasMaxTokens: maxTokens !== undefined
+    });
+    throw new Error('Missing required configuration parameters. Please configure the agent completely in the admin panel.');
+  }
+
+  console.log('OpenAI call parameters from database config:', {
     model,
     systemPromptLength: systemPrompt.length,
     messagesCount: messages.length,
@@ -311,7 +348,13 @@ async function callOpenAI(model: string, messages: any[], config: any, apiKey: s
     max_tokens: maxTokens,
   };
 
-  console.log('OpenAI request body:', JSON.stringify(requestBody, null, 2));
+  console.log('OpenAI request body structure:', {
+    model: requestBody.model,
+    messagesCount: requestBody.messages.length,
+    systemMessageLength: requestBody.messages[0].content.length,
+    temperature: requestBody.temperature,
+    max_tokens: requestBody.max_tokens
+  });
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -365,9 +408,13 @@ async function callAnthropic(model: string, messages: any[], config: any, supaba
     throw new Error('Anthropic API key not configured');
   }
 
-  const systemPrompt = config.prompt || 'You are a helpful assistant.';
-  const temperature = config.generation?.temperature || 0.7;
-  const maxTokens = config.generation?.max_response_tokens || 4000;
+  const systemPrompt = config.prompt;
+  const temperature = config.generation?.temperature;
+  const maxTokens = config.generation?.max_response_tokens;
+
+  if (systemPrompt === undefined || temperature === undefined || maxTokens === undefined) {
+    throw new Error('Missing required configuration parameters. Please configure the agent completely in the admin panel.');
+  }
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -414,9 +461,13 @@ async function callPerplexity(model: string, messages: any[], config: any, supab
     throw new Error('Perplexity API key not configured');
   }
 
-  const systemPrompt = config.prompt || 'You are a helpful assistant.';
-  const temperature = config.generation?.temperature || 0.7;
-  const maxTokens = config.generation?.max_response_tokens || 4000;
+  const systemPrompt = config.prompt;
+  const temperature = config.generation?.temperature;
+  const maxTokens = config.generation?.max_response_tokens;
+
+  if (systemPrompt === undefined || temperature === undefined || maxTokens === undefined) {
+    throw new Error('Missing required configuration parameters. Please configure the agent completely in the admin panel.');
+  }
 
   const response = await fetch('https://api.perplexity.ai/chat/completions', {
     method: 'POST',
