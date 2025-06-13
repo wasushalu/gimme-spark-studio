@@ -36,6 +36,7 @@ export function useWorkspaceMutations(
       queryClient.invalidateQueries({ queryKey: ['workspaces'] });
       toast.success('Workspace created successfully');
       
+      // Create new workspace object with empty projects array
       const newWorkspace: Workspace = {
         id: data.id,
         name: data.name,

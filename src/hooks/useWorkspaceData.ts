@@ -12,66 +12,71 @@ export function useWorkspaceData() {
     queryFn: async () => {
       console.log('Fetching workspaces...');
       
-      // Fetch workspaces
-      const { data: workspacesData, error: workspacesError } = await supabase
-        .from('workspaces')
-        .select('*')
-        .order('created_at', { ascending: true });
+      try {
+        // Fetch workspaces
+        const { data: workspacesData, error: workspacesError } = await supabase
+          .from('workspaces')
+          .select('*')
+          .order('created_at', { ascending: true });
 
-      if (workspacesError) {
-        console.error('Error fetching workspaces:', workspacesError);
-        throw workspacesError;
+        if (workspacesError) {
+          console.error('Error fetching workspaces:', workspacesError);
+          throw workspacesError;
+        }
+
+        // Fetch projects
+        const { data: projectsData, error: projectsError } = await supabase
+          .from('projects')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (projectsError) {
+          console.error('Error fetching projects:', projectsError);
+          throw projectsError;
+        }
+
+        // Fetch brand vaults
+        const { data: brandVaultsData, error: brandVaultsError } = await supabase
+          .from('brand_vaults')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (brandVaultsError) {
+          console.error('Error fetching brand vaults:', brandVaultsError);
+          throw brandVaultsError;
+        }
+
+        // Transform and combine data
+        const workspacesWithData: Workspace[] = (workspacesData || []).map((workspace: DbWorkspace) => {
+          const workspaceProjects = (projectsData || [])
+            .filter((project: DbProject) => project.workspace_id === workspace.id)
+            .map((project: DbProject) => ({
+              id: project.id,
+              name: project.name,
+              description: project.description || undefined,
+              brandVaults: (brandVaultsData || [])
+                .filter((vault: DbBrandVault) => vault.project_id === project.id)
+                .map((vault: DbBrandVault) => ({
+                  id: vault.id,
+                  name: vault.name,
+                  description: vault.description || undefined,
+                }))
+            }));
+
+          return {
+            id: workspace.id,
+            name: workspace.name,
+            description: workspace.description || undefined,
+            projects: workspaceProjects,
+          };
+        });
+
+        console.log('Fetched workspaces:', workspacesWithData);
+        return workspacesWithData;
+      } catch (error) {
+        console.error('Error in workspace data fetch:', error);
+        throw error;
       }
-
-      // Fetch projects
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: true });
-
-      if (projectsError) {
-        console.error('Error fetching projects:', projectsError);
-        throw projectsError;
-      }
-
-      // Fetch brand vaults
-      const { data: brandVaultsData, error: brandVaultsError } = await supabase
-        .from('brand_vaults')
-        .select('*')
-        .order('created_at', { ascending: true });
-
-      if (brandVaultsError) {
-        console.error('Error fetching brand vaults:', brandVaultsError);
-        throw brandVaultsError;
-      }
-
-      // Transform and combine data
-      const workspacesWithData: Workspace[] = workspacesData.map((workspace: DbWorkspace) => {
-        const workspaceProjects = projectsData
-          .filter((project: DbProject) => project.workspace_id === workspace.id)
-          .map((project: DbProject) => ({
-            id: project.id,
-            name: project.name,
-            description: project.description || undefined,
-            brandVaults: brandVaultsData
-              .filter((vault: DbBrandVault) => vault.project_id === project.id)
-              .map((vault: DbBrandVault) => ({
-                id: vault.id,
-                name: vault.name,
-                description: vault.description || undefined,
-              }))
-          }));
-
-        return {
-          id: workspace.id,
-          name: workspace.name,
-          description: workspace.description || undefined,
-          projects: workspaceProjects,
-        };
-      });
-
-      console.log('Fetched workspaces:', workspacesWithData);
-      return workspacesWithData;
     },
   });
 
